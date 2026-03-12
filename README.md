@@ -13,14 +13,15 @@ make uwb.down    # stop
 
 This repo is mounted into the container as a **shared volume**:
 
-- **Edit/create on the host**: changes appear immediately inside the container.
-- **Edit/create inside the container**: changes are written back to your host filesystem (same workspace directory).
+- **Edit/create on the host**: changes inside the project appear immediately inside the container /ws/src.
+- **Edit/create inside the container**: changes are written back to your host filesystem (same workspace directory) while operating inside /ws/src.
 
 ## First-time build (inside the container)
 
 After the **first** time you run `make uwb.shell`, you need to compile the ROS 2 workspace once:
 
 ```bash
+cd /ws
 colcon build
 source install/setup.bash
 ```
