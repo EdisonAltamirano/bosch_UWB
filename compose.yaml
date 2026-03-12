@@ -1,0 +1,31 @@
+services:
+  uwb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: uwb
+    container_name: uwb
+    network_mode: host
+    privileged: true
+    environment:
+      DISPLAY: ${DISPLAY}
+      QT_X11_NO_MITSHM: "1"
+      LOCAL_USER_ID: ${LOCAL_USER_ID:-1000}
+      LOCAL_GROUP_ID: ${LOCAL_GROUP_ID:-1000}
+      LOCAL_GROUP_NAME: ${LOCAL_GROUP_NAME:-hostgroup}
+      SSH_AUTH_SOCK: ${SSH_AUTH_SOCK:-}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev/bus/usb/:/dev/bus/usb
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+      - /etc/udev/rules.d:/etc/udev/rules.d
+      - ./:/home/ws/src
+      # SSH agent forwarding (optional; works when SSH_AUTH_SOCK is set)
+      - ${SSH_AUTH_SOCK:-/dev/null}:${SSH_AUTH_SOCK:-/dev/null}
+    devices:
+      - /dev/dri:/dev/dri
+    stdin_open: true
+    tty: true
+    command: bash
+
