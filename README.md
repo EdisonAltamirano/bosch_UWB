@@ -3,7 +3,7 @@
 ## Use
 
 ```bash
-cd /home/edison/bosch_UWB
+cd bosch_UWB
 make uwb.up      # build + start
 make uwb.shell   # open a terminal in the container
 make uwb.down    # stop
