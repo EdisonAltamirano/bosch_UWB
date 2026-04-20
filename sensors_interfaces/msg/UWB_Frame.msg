@@ -1,0 +1,10 @@
+builtin_interfaces/Time stamp
+uint16 seq
+uint8 msg_type
+uint8 radar_data_type
+uint32 session_handle
+uint8 status
+uint16 num_samples
+uint16 block_size
+uint8 bytes_per_tap
+uint8[] raw_payload

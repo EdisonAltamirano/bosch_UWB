@@ -39,6 +39,8 @@ setup(
             "unix_timestamp = sensors.unix_timestamp:main",
             "uwb_node = sensors.uwb_node:main",
             "uwb_test_sender = sensors.uwb_test_sender:main",
+            "uwb_udp_frame_publisher = sensors.uwb_udp_frame_publisher:main",
+            "uwb_frame_parser_node = sensors.uwb_frame_parser_node:main",
         ],
     },
 )

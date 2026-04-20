@@ -10,6 +10,7 @@
 
 #include "stdio.h"      // Standard input/output library.
 #include "udp_server.h" // UDP server header file
+#include "uwb_udp_protocol.h"
 
 extern uint8_t IP_ADDRESS[4];
 ip_addr_t destination_ip_addr;
@@ -30,7 +31,6 @@ void nucleo_udp_init(void)
     /* 1. Create a new UDP control block */
     upcb = udp_new();
     send_upcb = udp_new();
-    udp_connect(send_upcb, &destination_ip_addr, 20000);
 
     /* 2. Bind the upcb to the STM32 static IP and port 7 */
     ip_addr_t nucleo_board_ip_addr;
@@ -52,31 +52,18 @@ void nucleo_udp_init(void)
 void udp_receive_callback(void *arg, struct udp_pcb *upcb,
                            struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
-//    struct pbuf *txBuf;
+    static uint8_t rx_buf[512];
+    u16_t copy_len = p->tot_len;
 
-    /* Build the reply string using the received payload */
-    char buf[100];
-    int len = sprintf(buf, "Hello %s From UDP SERVER\n", (char *)p->payload);
+    nucleo_udp_set_destination(addr);
 
-//    if (destination_ip_addr.addr == 0) {
-//    	destination_ip_addr = *addr;
-//    }
-//
-//    /* Allocate a pbuf for the reply */
-//    txBuf = pbuf_alloc(PBUF_TRANSPORT, len, PBUF_RAM);
-//
-//    /* Copy the reply data into the pbuf */
-//    pbuf_take(txBuf, buf, len);
-//
-//    /* Set the client as the destination and send */
-//    udp_connect(upcb, addr, 20000);
-//    udp_send(upcb, txBuf);
-//
-//    /* Disconnect so the server is ready for the next client */
-//    udp_disconnect(upcb);
-//
-//    /* Free both buffers - never skip this */
-//    pbuf_free(txBuf);
+    if (copy_len <= sizeof(rx_buf)) {
+        pbuf_copy_partial(p, rx_buf, copy_len, 0);
+        uwb_udp_protocol_handle_packet(rx_buf, copy_len, addr, port);
+    } else {
+        printf("UDP command too large: %u bytes\n\r", copy_len);
+    }
+
     pbuf_free(p);
 }
 
@@ -96,8 +83,7 @@ uint8_t nucleo_udp_send(u16_t port, u8_t *payload, u16_t payload_length)
 		pbuf_take(txBuf, payload, payload_length);
 
 		/* Set the client as the destination and send */
-
-		udp_send(send_upcb, txBuf);
+		udp_sendto(send_upcb, txBuf, &destination_ip_addr, port);
 		send_status = 0;
     }
     else {
@@ -112,5 +98,12 @@ uint8_t nucleo_udp_send(u16_t port, u8_t *payload, u16_t payload_length)
     pbuf_free(txBuf);
 
     return send_status;
+}
+
+void nucleo_udp_set_destination(const ip_addr_t *addr)
+{
+    if (addr != NULL) {
+        destination_ip_addr = *addr;
+    }
 }
 

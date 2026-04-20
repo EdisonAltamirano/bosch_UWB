@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import socket
+from typing import Optional
+
+import rclpy
+from rclpy.node import Node
+
+try:
+    from sensors.sr250_protocol import (
+        MSG_TYPE_RADAR_FRAME,
+        parse_cir_udp_payload,
+        parse_radar_frame_payload,
+        unpack_envelope,
+    )
+except ImportError:
+    from sr250_protocol import (
+        MSG_TYPE_RADAR_FRAME,
+        parse_cir_udp_payload,
+        parse_radar_frame_payload,
+        unpack_envelope,
+    )
+
+try:
+    from sensors_interfaces.msg import UwbFrame as UWBFrameMsg
+except ImportError:
+    try:
+        from sensors_interfaces.msg import UWBFrame as UWBFrameMsg
+    except ImportError:
+        from sensors_interfaces.msg import UWB_Frame as UWBFrameMsg  # type: ignore
+
+
+class UWBUDPFramePublisher(Node):
+    def __init__(self):
+        super().__init__("uwb_udp_frame_publisher")
+
+        self.declare_parameter("listen_ip", "0.0.0.0")
+        self.declare_parameter("listen_port", 20000)
+        self.declare_parameter("topic_name", "/uwb/frame_raw")
+
+        self.listen_ip = self.get_parameter("listen_ip").value
+        self.listen_port = int(self.get_parameter("listen_port").value)
+        topic_name = self.get_parameter("topic_name").value
+
+        self.publisher_ = self.create_publisher(UWBFrameMsg, topic_name, 10)
+
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((self.listen_ip, self.listen_port))
+        self.sock.settimeout(1.0)
+
+        self._running = True
+        self._timer = self.create_timer(0.01, self._poll_socket)
+        self._packet_count = 0
+
+        self.get_logger().info(
+            f"Listening for RADAR_FRAME packets on {self.listen_ip}:{self.listen_port}"
+        )
+
+    def _publish_raw_sr250_payload(
+        self,
+        raw_payload: bytes,
+        seq: int,
+        msg_type: int,
+        radar_data_type: int,
+        session_handle: int,
+        status: int,
+    ) -> None:
+        num_samples = 0
+        block_size = 0
+        bytes_per_tap = 0
+
+        if radar_data_type == 0x00:
+            parsed = parse_cir_udp_payload(raw_payload)
+            num_samples = parsed["num_samples"]
+            block_size = parsed["block_size"]
+            bytes_per_tap = parsed["bytes_per_tap"]
+
+        msg = UWBFrameMsg()
+        msg.stamp = self.get_clock().now().to_msg()
+        msg.seq = seq
+        msg.msg_type = msg_type
+        msg.radar_data_type = radar_data_type
+        msg.session_handle = session_handle
+        msg.status = status
+        msg.num_samples = num_samples
+        msg.block_size = block_size
+        msg.bytes_per_tap = bytes_per_tap
+        msg.raw_payload = list(raw_payload)
+
+        self.publisher_.publish(msg)
+        self._packet_count += 1
+        self.get_logger().info(
+            f"Published UWB frame #{self._packet_count} seq={seq} "
+            f"type=0x{radar_data_type:02X} num_samples={num_samples}"
+        )
+
+    def _poll_socket(self) -> None:
+        if not self._running:
+            return
+
+        try:
+            data, addr = self.sock.recvfrom(65535)
+        except socket.timeout:
+            return
+        except OSError:
+            return
+        except Exception as exc:
+            self.get_logger().error(f"UDP receive error: {exc}")
+            return
+
+        try:
+            env = unpack_envelope(data)
+        except Exception:
+            try:
+                parsed = parse_cir_udp_payload(data)
+            except Exception as exc:
+                self.get_logger().warning(
+                    f"Dropping invalid UDP payload from {addr[0]}:{addr[1]}: {exc}"
+                )
+                return
+
+            self._publish_raw_sr250_payload(
+                raw_payload=data,
+                seq=0,
+                msg_type=MSG_TYPE_RADAR_FRAME,
+                radar_data_type=parsed["radar_data_type"],
+                session_handle=parsed["session_handle"],
+                status=parsed["status"],
+            )
+            return
+
+        if env["msg_type"] != MSG_TYPE_RADAR_FRAME:
+            return
+
+        try:
+            frame = parse_radar_frame_payload(env["payload"])
+            self._publish_raw_sr250_payload(
+                raw_payload=frame["raw_payload"],
+                seq=env["seq"],
+                msg_type=env["msg_type"],
+                radar_data_type=frame["radar_data_type"],
+                session_handle=frame["session_handle"],
+                status=frame["status"],
+            )
+        except Exception as exc:
+            self.get_logger().warning(f"Failed to parse RADAR_FRAME payload: {exc}")
+
+    def destroy_node(self):
+        self._running = False
+        try:
+            self.sock.close()
+        finally:
+            super().destroy_node()
+
+
+def main():
+    rclpy.init()
+    node: Optional[UWBUDPFramePublisher] = None
+    try:
+        node = UWBUDPFramePublisher()
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if node is not None:
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

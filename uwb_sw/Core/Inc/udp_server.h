@@ -8,10 +8,13 @@
 #ifndef INC_UDP_SERVER_H_
 #define INC_UDP_SERVER_H_
 
+#include "lwip/ip_addr.h"
+
 #define NUCLEO_ETH_PORT	37249	/* Single digit addition of decimal ASCII values representing BOSCH */
 
 void nucleo_udp_init(void);
 uint8_t nucleo_udp_send(u16_t port, u8_t *payload, u16_t payload_length);
+void nucleo_udp_set_destination(const ip_addr_t *addr);
 
 typedef struct {
 	uint8_t cmd_id;	// 1: Set radar configuration index and duration of run

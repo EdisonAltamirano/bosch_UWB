@@ -31,6 +31,7 @@
 #include "uci/uci_radar.h"
 #include "uci/uci_sr250.h"
 #include "uci/uci_transport.h"
+#include "uwb_udp_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -74,8 +75,6 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
                                           const uint8_t *payload, uint16_t len);
 
 /* ── Radar session state ── */
-static uint32_t radar_session_handle = 0;
-
 /* ── Board-specific antenna configuration for Truesense ETNA ──
  * NOTE: These antenna IDs and port mappings must match the ETNA board schematic.
  *       Update the values below to match your specific hardware wiring. */
@@ -175,6 +174,7 @@ int main(void)
   /* ── Initialize UCI stack ── */
   uci_transport_init();
   uci_core_init();
+  uwb_udp_protocol_init();
   uci_core_register_ntf_callback(app_uci_notification_handler);
 
   printf("UCI stack initialized\n\r");
@@ -200,67 +200,6 @@ int main(void)
   }
 
   /* ── Start a radar session with presence detection + AoA ── */
-  uci_status_t st = uci_radar_session_init(0x11223344, &radar_session_handle);
-  if (st != UCI_STATUS_OK) {
-      printf("Radar session init failed: 0x%02X\n\r", st);
-  }
-
-  uci_radar_params_t radar_cfg = {
-      .mode                = UCI_RADAR_MODE_MEDIUM_DISTANCE,  /* Required for OCPD */
-      .channel_number      = 9,
-      .preamble_code_index = 26,
-      .cir_num_samples     = 128,
-      .single_frame_ntf    = 0,       /* Every CIR sample immediately */
-      .performance         = 0x03,    /* DC freeze + BW increase */
-      .drift_compensation  = 0x0CCD,  /* Q1.15 of 0.1 */
-
-      .use_rfri = true,
-	  .use_perform_lprf_cal = false,
-      .rfri = {
-          .ranging_interval_ms = 96,     /* 50ms required if using OCPD */
-          .slot_duration_rstu  = 14400,	  /* 1200 RSTU = 1ms */
-          .slots_per_rr        = 4,
-      },
-
-      /* Two RX antennas for AoA */
-      .ant_rx_rxc_id = 0x01,
-      .ant_rx_rxb_id = 0x02,
-      .ant_rx_rxa_id = 0x00,
-      .ant_tx_id     = 0x01,
-
-      /* Presence detection with AoA */
-      .presence_det = {
-          .mode             = 0x00,   /* Bit0: enable, Bit1: distance+AoA */
-          .periodic_report  = 0x04,   /* Presence reporting every 400ms */
-          .sensitivity_q4_4 = 60,     /* Q4.4 of 3.75 */
-          .gpio_notify      = 0x00,   /* No GPIO notification */
-          .distance_min_cm  = 30,
-          .distance_max_cm  = 200,
-          .hold_delay_ms    = 1600,
-          .angle_min_deg    = -90,
-          .angle_max_deg    = +90,
-      },
-
-      .max_measurements = 0,  /* Unlimited */
-  };
-
-  uint32_t start_tick = HAL_GetTick();
-  uint32_t elapsed;
-
-  st = uci_radar_configure(radar_session_handle, &radar_cfg);
-  if (st != UCI_STATUS_OK) {
-      printf("Radar configure failed: 0x%02X\n\r", st);
-  }
-
-  st = uci_radar_start(radar_session_handle);
-  if (st != UCI_STATUS_OK) {
-      printf("Radar start failed: 0x%02X\n\r", st);
-  } else {
-      printf("Radar session started\n\r");
-  }
-
-
-
   /* USER CODE END BSP */
 
   /* Infinite loop */
@@ -279,21 +218,6 @@ int main(void)
 
 
 
-//	elapsed = HAL_GetTick() - start_tick;
-//	if (elapsed >= 200) {
-//		break;
-//	}
-
-  }
-
-  st = uci_radar_stop(radar_session_handle);
-  if (st == UCI_STATUS_OK) {
-      printf("Radar session stopped: 0x%02X\n\r", st);
-  }
-
-  st = uci_radar_deinit(radar_session_handle);
-  if (st == UCI_STATUS_OK) {
-      printf("Radar session deinitialized: 0x%02X\n\r", st);
   }
   /* USER CODE END 3 */
 }
@@ -374,7 +298,7 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
             const uint8_t *cir_data;
             uint16_t num_taps;
             uci_radar_parse_cir_ntf(payload, len, &meta, &cir_data, &num_taps);
-            nucleo_udp_send(20000, payload, len);
+            uwb_udp_protocol_send_radar_frame(payload, len);
             printf("CIR: rx=%d taps=%d offset=%d\n\r",
                    meta.rx_path, num_taps, meta.cir_start_offset);
             break;
@@ -382,6 +306,7 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
         case UCI_RADAR_DATA_PRESENCE: {
             uci_radar_presence_ntf_t presence;
             uci_radar_parse_presence_ntf(payload, len, &presence);
+            uwb_udp_protocol_send_radar_frame(payload, len);
             if (presence.presence_detected) {
                 for (uint8_t i = 0; i < presence.num_detections; i++) {
                     printf("Target %d: dist=%dcm angle=%d deg\n\r", i,
@@ -396,6 +321,7 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
         case UCI_RADAR_DATA_ANT_ISOLATION: {
             uci_radar_ant_isolation_ntf_t iso;
             uci_radar_parse_ant_isolation_ntf(payload, len, &iso);
+            uwb_udp_protocol_send_radar_frame(payload, len);
             printf("Isolation: TX%d->RX%d = %ddB\n\r",
                    iso.tx_antenna_id, iso.rx_antenna_id, iso.isolation_db);
             break;
