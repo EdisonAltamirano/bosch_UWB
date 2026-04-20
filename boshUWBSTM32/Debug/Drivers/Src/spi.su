@@ -1,0 +1,7 @@
+../Drivers/Src/spi.c:30:6:MX_SPI6_Init	8	static
+../Drivers/Src/spi.c:72:6:HAL_SPI_MspInit	248	static
+../Drivers/Src/spi.c:122:6:HAL_SPI_MspDeInit	16	static
+../Drivers/Src/spi.c:149:10:nucleo_spi_master_transfer_blocking	32	static
+../Drivers/Src/spi.c:170:10:nucleo_spi_write	32	static
+../Drivers/Src/spi.c:193:10:nucleo_spi_read	32	static
+../Drivers/Src/spi.c:211:10:nucleo_spi_read_both	32	static

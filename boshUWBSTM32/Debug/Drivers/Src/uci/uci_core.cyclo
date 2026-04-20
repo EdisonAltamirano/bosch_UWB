@@ -1,0 +1,9 @@
+../Drivers/Src/uci/uci_core.c:58:6:uci_build_header	2
+../Drivers/Src/uci/uci_core.c:77:6:uci_parse_header	2
+../Drivers/Src/uci/uci_core.c:96:13:uci_dispatch_packet	22
+../Drivers/Src/uci/uci_core.c:167:13:uci_process_raw_packet	8
+../Drivers/Src/uci/uci_core.c:235:6:uci_core_init	1
+../Drivers/Src/uci/uci_core.c:241:6:uci_core_register_ntf_callback	1
+../Drivers/Src/uci/uci_core.c:246:6:uci_core_process	4
+../Drivers/Src/uci/uci_core.c:282:14:uci_core_send_command	17
+../Drivers/Src/uci/uci_core.c:398:9:uci_core_get_device_state	1

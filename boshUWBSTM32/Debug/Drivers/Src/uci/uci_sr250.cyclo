@@ -1,0 +1,16 @@
+../Drivers/Src/uci/uci_sr250.c:27:20:put_le16	1
+../Drivers/Src/uci/uci_sr250.c:33:20:put_le32	1
+../Drivers/Src/uci/uci_sr250.c:50:14:uci_sr250_device_reset	1
+../Drivers/Src/uci/uci_sr250.c:62:14:uci_sr250_device_init	1
+../Drivers/Src/uci/uci_sr250.c:75:14:uci_sr250_get_device_info	1
+../Drivers/Src/uci/uci_sr250.c:105:14:uci_sr250_set_rx_antenna_defs	5
+../Drivers/Src/uci/uci_sr250.c:128:14:uci_sr250_set_tx_antenna_defs	5
+../Drivers/Src/uci/uci_sr250.c:150:14:uci_sr250_set_rx_antenna_pairs	5
+../Drivers/Src/uci/uci_sr250.c:176:14:uci_sr250_set_vendor_app_config	3
+../Drivers/Src/uci/uci_sr250.c:198:14:uci_sr250_get_vendor_app_config	6
+../Drivers/Src/uci/uci_sr250.c:236:14:uci_sr250_do_calibration	1
+../Drivers/Src/uci/uci_sr250.c:253:14:uci_sr250_set_calibration	3
+../Drivers/Src/uci/uci_sr250.c:278:14:uci_sr250_get_calibration	7
+../Drivers/Src/uci/uci_sr250.c:310:14:uci_sr250_query_temperature	4
+../Drivers/Src/uci/uci_sr250.c:335:21:wait_for_device_state	3
+../Drivers/Src/uci/uci_sr250.c:348:14:uci_sr250_full_init	17

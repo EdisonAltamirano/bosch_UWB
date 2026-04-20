@@ -1,0 +1,4 @@
+../Drivers/Src/gpio.c:43:6:MX_GPIO_Init	64	static
+../Drivers/Src/gpio.c:168:10:nucleo_spi_rdy_line_get_state	8	static
+../Drivers/Src/gpio.c:173:10:nucleo_spi_int_line_get_state	8	static
+../Drivers/Src/gpio.c:178:6:nucleo_nxp_reset_line_assert	16	static

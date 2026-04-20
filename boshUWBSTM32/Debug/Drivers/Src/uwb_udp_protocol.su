@@ -1,0 +1,15 @@
+../Drivers/Src/uwb_udp_protocol.c:20:17:get_le16	16	static
+../Drivers/Src/uwb_udp_protocol.c:25:17:get_le32	16	static
+../Drivers/Src/uwb_udp_protocol.c:33:13:put_le16	16	static
+../Drivers/Src/uwb_udp_protocol.c:39:13:put_le32	16	static
+../Drivers/Src/uwb_udp_protocol.c:47:17:uwb_build_envelope	24	static
+../Drivers/Src/uwb_udp_protocol.c:62:13:uwb_send_ack	48	static
+../Drivers/Src/uwb_udp_protocol.c:74:13:uwb_send_error	64	static
+../Drivers/Src/uwb_udp_protocol.c:89:17:uwb_required_mask	4	static
+../Drivers/Src/uwb_udp_protocol.c:106:21:uwb_ensure_session_initialized	16	static
+../Drivers/Src/uwb_udp_protocol.c:119:21:uwb_apply_config	24	static
+../Drivers/Src/uwb_udp_protocol.c:156:12:uwb_tag_to_mask_bit	16	static
+../Drivers/Src/uwb_udp_protocol.c:176:21:uwb_parse_tlvs_into_cfg	40	static
+../Drivers/Src/uwb_udp_protocol.c:299:6:uwb_udp_protocol_init	8	static
+../Drivers/Src/uwb_udp_protocol.c:304:6:uwb_udp_protocol_handle_packet	112	static
+../Drivers/Src/uwb_udp_protocol.c:447:6:uwb_udp_protocol_send_radar_frame	40	static

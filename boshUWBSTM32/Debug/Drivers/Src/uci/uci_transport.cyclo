@@ -1,0 +1,7 @@
+../Drivers/Src/uci/uci_transport.c:25:13:uci_dwt_init	1
+../Drivers/Src/uci/uci_transport.c:35:6:uci_delay_us	2
+../Drivers/Src/uci/uci_transport.c:59:6:uci_transport_init	1
+../Drivers/Src/uci/uci_transport.c:68:14:uci_transport_send	5
+../Drivers/Src/uci/uci_transport.c:93:14:uci_transport_receive	10
+../Drivers/Src/uci/uci_transport.c:182:6:uci_transport_data_available	1
+../Drivers/Src/uci/uci_transport.c:191:6:uci_transport_hw_reset	1
