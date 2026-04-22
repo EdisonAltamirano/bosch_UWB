@@ -41,6 +41,7 @@ setup(
             "uwb_test_sender = sensors.uwb_test_sender:main",
             "uwb_udp_frame_publisher = sensors.uwb_udp_frame_publisher:main",
             "uwb_frame_parser_node = sensors.uwb_frame_parser_node:main",
+            "uwb_cir_inspector = sensors.uwb_cir_inspector:main",
         ],
     },
 )

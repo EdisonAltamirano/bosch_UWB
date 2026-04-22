@@ -61,7 +61,7 @@ class UWBNode(Node):
     def __init__(self):
         super().__init__("uwb_node")
 
-        self.declare_parameter("stm32_ip", "192.168.1.100")
+        self.declare_parameter("stm32_ip", "192.168.1.10")
         self.declare_parameter("stm32_port", 37249)
         self.declare_parameter("listen_ip", "0.0.0.0")
         self.declare_parameter("listen_port", 20001)

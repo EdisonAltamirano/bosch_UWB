@@ -2,12 +2,12 @@ UWB_ENV = LOCAL_USER_ID=$$(id -u) LOCAL_GROUP_ID=$$(id -g) LOCAL_GROUP_NAME=$$(i
 
 uwb.up:
 	@xhost +local:docker
-	@docker rm -f uwb >/dev/null 2>&1 || true
+# 	@docker rm -f uwb >/dev/null 2>&1 || true
 	@$(UWB_ENV) docker compose up -d --build
 uwb.down:
 	@xhost +local:docker
 	@docker compose down
-	@docker rm -f uwb >/dev/null 2>&1 || true
+# 	@docker rm -f uwb >/dev/null 2>&1 || true
 uwb.restart:
 	@xhost +local:docker
 	@docker compose restart

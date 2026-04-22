@@ -1,55 +1,178 @@
-import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import TimerAction
 from launch_ros.actions import Node
 
+
+# ---------------------------------------------------------------------------
+# Network addressing
+# ---------------------------------------------------------------------------
+# STM32 actual IP confirmed from Ethernet capture (MAC 00:80:E1 = STMicro).
+STM32_IP   = "192.168.1.10"    # ← board IP (NOT 192.168.1.100)
+STM32_PORT = 37249              # command (SET_CONFIG, START, STOP)
+PC_LISTEN_ACK_PORT    = 20001   # uwb_node listens for ACK / ERROR here
+PC_LISTEN_FRAME_PORT  = 20000   # uwb_udp_frame_publisher listens here
+
+# ---------------------------------------------------------------------------
+# Radar configuration sent from PC → STM32 via SET_CONFIG_FULL
+# ---------------------------------------------------------------------------
+RADAR_CFG = {
+    "stm32_ip":                  STM32_IP,
+    "stm32_port":                STM32_PORT,
+    "listen_port":               PC_LISTEN_ACK_PORT,
+    "auto_start":                True,
+
+    # ── Standard UCI app-config ──────────────────────────────────────────
+    "channel_number":            9,       # UWB channel 9 (≈ 8.0 GHz)
+    "preamble_code_index":       26,
+
+    # ── Antenna selection ────────────────────────────────────────────────
+    "antennas_config_rx_mode":   0x02,
+    "ant_rx_rxc_id":             1,       # RXC port  → antenna ID 1
+    "ant_rx_rxb_id":             2,       # RXB port  → antenna ID 2
+    "ant_rx_rxa_id":             0,       # 0 = disabled
+    "ant_tx_id":                 1,       # TRA1 port → antenna ID 1
+
+    # ── Vendor radar params ──────────────────────────────────────────────
+    "radar_mode":                1,       # 1 = MEDIUM_DISTANCE
+    "single_frame_ntf":          0,
+    "rfri_ranging_interval_ms":  96,      # ~10.4 fps
+    "rfri_slot_duration_rstu":   14400,
+    "rfri_slots_per_rr":         4,
+    "cir_num_samples":           128,     # CIR taps per measurement
+    "rx_gain_agc_mode":          0,       # 0 = AGC
+    "rx_gain_rxa":               0,
+    "rx_gain_rxb":               0,
+    "rx_gain_rxc":               0,
+    "cir_start_offset_rxc":      0,
+    "cir_start_offset_rxb":      0,
+    "cir_start_offset_rxa":      0,
+    "performance":               0x03,
+    "drift_compensation":        0x0CCD,
+
+    # ── Presence detection — disabled (CIR streaming only) ───────────────
+    "presence_mode":             0x00,
+    "presence_periodic_report":  0x04,
+    "presence_sensitivity_q4_4": 60,
+    "presence_gpio_notify":      0x00,
+    "presence_distance_min_cm":  30,
+    "presence_distance_max_cm":  200,
+    "presence_hold_delay_ms":    1600,
+    "presence_angle_min_deg":    -90,
+    "presence_angle_max_deg":    90,
+}
+
+# Inspector only needs the subset that goes into its summary header
+_INSPECTOR_KEYS = (
+    "stm32_ip",
+    "channel_number", "preamble_code_index", "radar_mode",
+    "rfri_ranging_interval_ms", "rfri_slot_duration_rstu", "rfri_slots_per_rr",
+    "cir_num_samples", "ant_rx_rxc_id", "ant_rx_rxb_id", "ant_rx_rxa_id",
+    "ant_tx_id", "rx_gain_agc_mode", "performance", "drift_compensation",
+    "presence_mode",
+)
+INSPECTOR_CFG = {k: RADAR_CFG[k] for k in _INSPECTOR_KEYS}
+INSPECTOR_CFG["summary_path"] = "/tmp/session_summary.txt"
+
+
 def generate_launch_description():
-    
     return LaunchDescription([
-        
-        TimerAction(
-            period=1.0,
-            actions=[
+
+        # ── 0. Timestamp publisher ───────────────────────────────────────────
+        # Publishes Unix timestamps for cross-node time alignment.
         Node(
-            package='sensors',
-            executable='unix_timestamp',
-            output='screen'
+            package="sensors",
+            executable="unix_timestamp",
+            name="unix_timestamp",
+            output="screen",
         ),
-            ]
+
+        # ── 1. UDP → ROS2 bridge ─────────────────────────────────────────────
+        # Listens on port 20000 for RADAR_FRAME UDP packets from the STM32,
+        # strips the protocol envelope, and publishes each frame as UwbFrame
+        # on /uwb/frame_raw.
+        Node(
+            package="sensors",
+            executable="uwb_udp_frame_publisher",
+            name="uwb_udp_frame_publisher",
+            output="screen",
+            parameters=[{
+                "listen_ip":   "0.0.0.0",
+                "listen_port": PC_LISTEN_FRAME_PORT,
+                "topic_name":  "/uwb/frame_raw",
+            }],
         ),
-        # UWB node (starts 2 seconds after launch)
+
+        # ── 2. CIR inspector / test node ─────────────────────────────────────
+        # Subscribes to /uwb/frame_raw, decodes every CIR frame fully, and
+        # writes a rolling /tmp/session_summary.txt showing metadata, antenna
+        # info, tap statistics, and first tap values per frame.
+        Node(
+            package="sensors",
+            executable="uwb_cir_inspector",
+            name="uwb_cir_inspector",
+            output="screen",
+            parameters=[INSPECTOR_CFG],
+        ),
+
+        # ── 3. Frame parser / archiver ───────────────────────────────────────
+        # Subscribes to /uwb/frame_raw and saves each CIR frame as a
+        # compressed NumPy archive (.npz) in ./uwb_npz/.
+        Node(
+            package="sensors",
+            executable="uwb_frame_parser_node",
+            name="uwb_frame_parser_node",
+            output="screen",
+            parameters=[{
+                "topic_name":  "/uwb/frame_raw",
+                "output_dir":  "uwb_npz",
+                "save_every_n": 1,
+            }],
+        ),
+
+        # ── 4. Control node (delayed so receivers are ready first) ────────────
+        # Sends SET_CONFIG_FULL to the STM32 on port 37249, waits for ACK,
+        # then sends START_RADAR automatically (auto_start=True).
+        # After START_RADAR is ACKed, the STM32 begins streaming RADAR_FRAME
+        # packets to port 20000.
         TimerAction(
             period=2.0,
             actions=[
                 Node(
-                    package='sensors',
-                    executable='uwb_node',
-                    name='uwb_node',
-                    output='screen',
-                    parameters=[{
-                        'udp_ip': '192.168.1.100',     # UWB device IP
-                        'udp_port': 9998,               # UWB device port
-                        'listen_port': 9999,            # local port for incoming CIR data
-                        'cirinterval': 4000,            # pulse repetition interval in us (1ms..1s)
-                        'cirtaps': 64,                  # number of CIR taps (do not change)
-                        'frequency': 6500000,           # Tx frequency in KHz (6.4GHz-8GHz)
-                        'ciroffset': 0,                 # CIR offset in taps (0..1015)
-                        'mode': 1,                      # Bit0=1: correlated data mode
-                        'dccompfiltercoef': 1,          # DC comp filter coef (0x01=k=0.01 .. 0x63=k=0.99)
-                    }]
-                )
-            ]
+                    package="sensors",
+                    executable="uwb_node",
+                    name="uwb_node",
+                    output="screen",
+                    parameters=[RADAR_CFG],
+                ),
+            ],
         ),
-        # (Optional) UWB test sender (starts 3 seconds after launch)
-        TimerAction(
-            period=3.0,
-            actions=[
-                Node(
-                    package='sensors',
-                    executable='uwb_test_sender',
-                    output='screen'
-                )
-            ]
-        ),
+
+        # ── 5. Synthetic-data test sender (hardware-free pipeline test) ───────
+        # Sends synthetic CIR frames to 127.0.0.1:20000 at 10 Hz so the
+        # full ROS2 pipeline can be verified without the STM32.
+        #
+        # DISABLE THIS when the STM32 is connected — it injects synthetic
+        # packets that would mix with real radar data on port 20000.
+        # To disable: comment out the TimerAction block below.
+        #
+        # TimerAction(
+        #     period=4.0,
+        #     actions=[
+        #         Node(
+        #             package="sensors",
+        #             executable="uwb_test_sender",
+        #             name="uwb_test_sender",
+        #             output="screen",
+        #             parameters=[{
+        #                 "target_ip":               "127.0.0.1",
+        #                 "target_port":             20000,
+        #                 "rate_hz":                 10.0,
+        #                 "num_samples":             2,
+        #                 "taps_per_block":          120,
+        #                 "wrap_protocol_envelope":  True,
+        #             }],
+        #         ),
+        #     ],
+        # ),
+
     ])
