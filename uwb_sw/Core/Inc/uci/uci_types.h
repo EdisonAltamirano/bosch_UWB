@@ -74,6 +74,26 @@ typedef enum {
     UCI_RADAR_DATA_LPRF_CALIB     = 0x21,
 } uci_radar_data_type_t;
 
+/* ── Main control state machine ── */
+typedef enum {
+	UCI_WAITING_FOR_USER_COMMAND		= 0x00,
+    UCI_INIT_SYSTEM    					= 0x01,
+	UCI_INIT_UWB_SUBSYSTEM				= 0x02,
+	UCI_INIT_UWB_SUBSYSTEM_FAILED		= 0x03,
+	UCI_INIT_UWB_RADAR_SESSION			= 0x04,
+	UCI_INIT_UWB_RADAR_FAILED			= 0x05,
+	UCI_CONFIG_UWB_RADAR				= 0x06,
+	UCI_CONFIG_UWB_RADAR_FAILED			= 0x07,
+	UCI_START_UWB_RADAR					= 0x08,
+	UCI_START_UWB_RADAR_FAILED			= 0x09,
+	UCI_UWB_RADAR_RUNNING				= 0x0A,
+	UCI_UWB_RADAR_SESSION_TIMEOUT		= 0x0B,
+	UCI_UWB_RADAR_SESSION_STOP			= 0x0C,
+	UCI_UWB_RADAR_SESSION_STOP_FAILED   = 0x0D,
+	UCI_UWB_RADAR_SESSION_DEINIT		= 0x0E,
+	UCI_UWB_RADAR_SESSION_DEINIT_FAILED	= 0x0F,
+} uci_main_control_states_t;
+
 /* ── Radar RFRI (Frame Repetition Interval) ── */
 typedef struct {
     uint32_t ranging_interval_ms;

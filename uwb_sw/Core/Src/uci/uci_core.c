@@ -259,23 +259,6 @@ void uci_core_process(void)
         return;
     }
 
-//    if (rx_buf[0] == 0x79 && rx_buf[1] == 0x8a) {
-//    	printf("Yo %d 0x%02X 0x%02X 0x%02X 0x%02X\n\r", rx_len, rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3]);
-//    }
-//    else if (rx_buf[0] == 0x01 && rx_buf[1] == 0x00 && rx_buf[2] == 0x00 && rx_buf[3] == 0xF0) {
-//    	printf("Man %d\n\r", rx_len);
-//    }
-//    else {
-//    	printf("FU %d 0x%02X 0x%02X 0x%02X 0x%02X\n\r", rx_len, rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3]);
-//    }
-//    printf("Len: %d, RRx: ", rx_len);
-//    for (; p_ctr < rx_len; p_ctr++) {
-//    	printf("0x%02X ", rx_buf[p_ctr]);
-//    }
-//    printf("\n\r");
-
-//    printf("Len: %d, RRx: 0x%02X 0x%02X 0x%02X 0x%02X \n\r", rx_len, rx_buf[0], rx_buf[1], rx_buf[2], rx_buf[3]);
-
     uci_process_raw_packet(rx_buf, rx_len);
 }
 

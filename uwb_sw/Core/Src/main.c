@@ -31,7 +31,6 @@
 #include "uci/uci_radar.h"
 #include "uci/uci_sr250.h"
 #include "uci/uci_transport.h"
-#include "uwb_udp_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,11 +69,18 @@ static void MPU_Config(void);
 
 extern struct netif gnetif;
 
+/* State machine tracker */
+volatile uci_main_control_states_t main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+volatile uint8_t 	user_radar_config_idx = 0; /* Default: 0 */
+volatile uint32_t	user_radar_session_duration_ms = 1000; /* Default: 1 second */
+
 /* ── Notification handler (forward declaration) ── */
 static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
                                           const uint8_t *payload, uint16_t len);
 
 /* ── Radar session state ── */
+static uint32_t radar_session_handle = 0;
+
 /* ── Board-specific antenna configuration for Truesense ETNA ──
  * NOTE: These antenna IDs and port mappings must match the ETNA board schematic.
  *       Update the values below to match your specific hardware wiring. */
@@ -148,7 +154,6 @@ int main(void)
   /* Initialize leds */
   BSP_LED_Init(LED_YELLOW);
   BSP_LED_Init(LED_RED);
-
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
   BspCOMInit.BaudRate   = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;
@@ -165,21 +170,17 @@ int main(void)
   /* -- Sample board code to send message over COM1 port ---- */
   printf("Welcome to STM32 world !\n\r");
 
-  /* -- Sample board code to switch on leds ---- */
-  BSP_LED_On(LED_YELLOW);
-  BSP_LED_On(LED_RED);
-
   nucleo_udp_init();
 
   /* ── Initialize UCI stack ── */
   uci_transport_init();
   uci_core_init();
-  uwb_udp_protocol_init();
   uci_core_register_ntf_callback(app_uci_notification_handler);
 
   printf("UCI stack initialized\n\r");
 
   /* ── Full SR250 initialization: reset → device_init → antenna config → calibration ── */
+  /* By default, we do not run chip calibration */
   uci_sr250_init_config_t init_cfg = {
       .rx_antennas        = etna_rx_antennas,
       .num_rx_antennas    = ETNA_NUM_RX_ANT,
@@ -187,19 +188,98 @@ int main(void)
       .num_tx_antennas    = ETNA_NUM_TX_ANT,
       .rx_pairs           = etna_rx_pairs,
       .num_rx_pairs       = ETNA_NUM_RX_PAIRS,
-      .run_chip_calibration = true,
+      .run_chip_calibration = false,
       .channel            = 9,
   };
 
-  uci_status_t init_st = uci_sr250_full_init(&init_cfg);
-  if (init_st != UCI_STATUS_OK) {
-      printf("SR250 init failed: 0x%02X\n\r", init_st);
-      BSP_LED_Off(LED_YELLOW);
-  } else {
-      printf("SR250 init OK\n\r");
-  }
+  uci_radar_params_t radar_cfg[] = {{
+      .mode                = UCI_RADAR_MODE_MEDIUM_DISTANCE,  /* Required for OCPD */
+      .channel_number      = 9,
+      .preamble_code_index = 26,
+      .cir_num_samples     = 128,
+      .single_frame_ntf    = 0,       /* Every CIR sample immediately */
+      .performance         = 0x03,    /* DC freeze + BW increase */
+      .drift_compensation  = 0x0CCD,  /* Q1.15 of 0.1 */
 
-  /* ── Start a radar session with presence detection + AoA ── */
+      .use_rfri = true,
+	  .use_perform_lprf_cal = false,
+      .rfri = {
+          .ranging_interval_ms = 100,     /* 50ms required if using OCPD */
+          .slot_duration_rstu  = 12000,	  /* 1200 RSTU = 1ms */
+          .slots_per_rr        = 10,
+      },
+
+      /* Two RX antennas for AoA */
+      .ant_rx_rxc_id = 0x01,
+      .ant_rx_rxb_id = 0x02,
+      .ant_rx_rxa_id = 0x00,
+      .ant_tx_id     = 0x01,
+
+      /* Presence detection with AoA */
+      .presence_det = {
+          .mode             = 0x00,   /* Bit0: enable, Bit1: distance+AoA */
+          .periodic_report  = 0x04,   /* Presence reporting every 400ms */
+          .sensitivity_q4_4 = 60,     /* Q4.4 of 3.75 */
+          .gpio_notify      = 0x00,   /* No GPIO notification */
+          .distance_min_cm  = 30,
+          .distance_max_cm  = 200,
+          .hold_delay_ms    = 1600,
+          .angle_min_deg    = -90,
+          .angle_max_deg    = +90,
+      },
+
+      .max_measurements = 0,  /* Unlimited */
+  },
+  {
+		.mode                = UCI_RADAR_MODE_FAR_DISTANCE,  /* Required for OCPD */
+		.channel_number      = 9,
+		.preamble_code_index = 26,
+		.cir_num_samples     = 128,
+		.single_frame_ntf    = 0,       /* Every CIR sample immediately */
+		.performance         = 0x03,    /* DC freeze + BW increase */
+		.drift_compensation  = 0x0CCD,  /* Q1.15 of 0.1 */
+
+		.use_rfri = true,
+		.use_perform_lprf_cal = false,
+		.rfri = {
+			.ranging_interval_ms = 100,     /* 50ms required if using OCPD */
+			.slot_duration_rstu  = 12000,	  /* 1200 RSTU = 1ms */
+			.slots_per_rr        = 10,
+		},
+
+		/* Two RX antennas for AoA */
+		.ant_rx_rxc_id = 0x01,
+		.ant_rx_rxb_id = 0x02,
+		.ant_rx_rxa_id = 0x00,
+		.ant_tx_id     = 0x01,
+
+		/* Presence detection with AoA */
+		.presence_det = {
+			.mode             = 0x00,   /* Bit0: enable, Bit1: distance+AoA */
+			.periodic_report  = 0x04,   /* Presence reporting every 400ms */
+			.sensitivity_q4_4 = 60,     /* Q4.4 of 3.75 */
+			.gpio_notify      = 0x00,   /* No GPIO notification */
+			.distance_min_cm  = 30,
+			.distance_max_cm  = 200,
+			.hold_delay_ms    = 1600,
+			.angle_min_deg    = -90,
+			.angle_max_deg    = +90,
+		},
+
+		.max_measurements = 0,  /* Unlimited */
+	}
+  };
+
+  /* Keeping track of duration to run the radar session */
+  uint32_t session_start_tick = 0;
+  uint32_t elapsed = 0;
+
+  /* Function execution status */
+  uci_status_t st = UCI_STATUS_OK;
+
+  /* Error message variable */
+  udp_err_report_cmd_t err_report_cmd;
+
   /* USER CODE END BSP */
 
   /* Infinite loop */
@@ -210,13 +290,140 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	switch (main_control_state) {
+		case UCI_WAITING_FOR_USER_COMMAND:
+			break;
+		case UCI_INIT_SYSTEM:
+			/* -- Sample board code to switch on leds ---- */
+			BSP_LED_On(LED_YELLOW);
+			BSP_LED_On(LED_RED);
+			main_control_state = UCI_INIT_UWB_SUBSYSTEM;
+			break;
+		case UCI_INIT_UWB_SUBSYSTEM:
+			st = uci_sr250_full_init(&init_cfg);
+			if (st != UCI_STATUS_OK) {
+			  main_control_state = UCI_INIT_UWB_SUBSYSTEM_FAILED;
+			} else {
+			  printf("SR250 init OK\n\r");
+			  main_control_state = UCI_INIT_UWB_RADAR_SESSION;
+			}
+			break;
+		case UCI_INIT_UWB_SUBSYSTEM_FAILED:
+			printf("SR250 init failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_INIT_UWB_SUBSYSTEM_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+		case UCI_INIT_UWB_RADAR_SESSION:
+			/* ── Start a radar session with presence detection + AoA ── */
+			st = uci_radar_session_init(0x11223344, &radar_session_handle);
+			if (st != UCI_STATUS_OK) {
+				main_control_state = UCI_INIT_UWB_RADAR_FAILED;
+			}
+			else {
+				main_control_state = UCI_CONFIG_UWB_RADAR;
+				printf("Radar session init success.\n\r");
+			}
+			break;
+		case UCI_INIT_UWB_RADAR_FAILED:
+			printf("Radar session init failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_INIT_UWB_RADAR_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+		case UCI_CONFIG_UWB_RADAR:
+			st = uci_radar_configure(radar_session_handle, &radar_cfg[user_radar_config_idx]);
+			if (st != UCI_STATUS_OK) {
+				main_control_state = UCI_CONFIG_UWB_RADAR_FAILED;
+			}
+			else {
+				main_control_state = UCI_START_UWB_RADAR;
+				printf("Radar session configuration success.\n\r");
+			}
+			break;
+		case UCI_CONFIG_UWB_RADAR_FAILED:
+			printf("Radar configure failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_CONFIG_UWB_RADAR_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+		case UCI_START_UWB_RADAR:
+			session_start_tick = HAL_GetTick();
+			st = uci_radar_start(radar_session_handle);
+			if (st != UCI_STATUS_OK) {
+				main_control_state = UCI_START_UWB_RADAR_FAILED;
+			} else {
+				main_control_state = UCI_UWB_RADAR_RUNNING;
+				printf("Radar session started\n\r");
+			}
+			break;
+		case UCI_START_UWB_RADAR_FAILED:
+			printf("Radar start failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_START_UWB_RADAR_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+		case UCI_UWB_RADAR_RUNNING:
+			elapsed = HAL_GetTick() - session_start_tick;
+			if (elapsed >= user_radar_session_duration_ms) {
+				main_control_state = UCI_UWB_RADAR_SESSION_TIMEOUT;
+			}
+			break;
+		case UCI_UWB_RADAR_SESSION_TIMEOUT:
+			elapsed = 0;
+			session_start_tick = 0;
+			main_control_state = UCI_UWB_RADAR_SESSION_STOP;
+			break;
+		case UCI_UWB_RADAR_SESSION_STOP:
+			st = uci_radar_stop(radar_session_handle);
+			if (st != UCI_STATUS_OK) {
+				main_control_state = UCI_UWB_RADAR_SESSION_STOP_FAILED;
+			}
+			else {
+				printf("Radar session stopped: 0x%02X\n\r", st);
+				main_control_state = UCI_UWB_RADAR_SESSION_DEINIT;
+			}
+			break;
+		case UCI_UWB_RADAR_SESSION_STOP_FAILED:
+			printf("Radar session stop failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_UWB_RADAR_SESSION_STOP_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+		case UCI_UWB_RADAR_SESSION_DEINIT:
+			st = uci_radar_deinit(radar_session_handle);
+			if (st != UCI_STATUS_OK) {
+				main_control_state = UCI_UWB_RADAR_SESSION_DEINIT_FAILED;
+			}
+			else {
+				main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+				printf("Radar session deinitialized: 0x%02X\n\r", st);
+			}
+			break;
+		case UCI_UWB_RADAR_SESSION_DEINIT_FAILED:
+			printf("Radar session deinitialization failed: 0x%02X\n\r", st);
+			BSP_LED_Off(LED_YELLOW);
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_UWB_RADAR_SESSION_DEINIT_FAILED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			main_control_state = UCI_WAITING_FOR_USER_COMMAND;
+			break;
+	}
     /* Process any pending UCI data from SR250 (dispatches RADAR_RX_NTF to callback) */
     uci_core_process();
 
     /* Process Ethernet / LwIP */
     MX_LWIP_Process();
-
-
 
   }
   /* USER CODE END 3 */
@@ -298,7 +505,7 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
             const uint8_t *cir_data;
             uint16_t num_taps;
             uci_radar_parse_cir_ntf(payload, len, &meta, &cir_data, &num_taps);
-            uwb_udp_protocol_send_radar_frame(payload, len);
+            nucleo_udp_send(NUCLEO_REMOTE_PORT, CMD_CIR_REPORT, payload, len);
             printf("CIR: rx=%d taps=%d offset=%d\n\r",
                    meta.rx_path, num_taps, meta.cir_start_offset);
             break;
@@ -306,7 +513,6 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
         case UCI_RADAR_DATA_PRESENCE: {
             uci_radar_presence_ntf_t presence;
             uci_radar_parse_presence_ntf(payload, len, &presence);
-            uwb_udp_protocol_send_radar_frame(payload, len);
             if (presence.presence_detected) {
                 for (uint8_t i = 0; i < presence.num_detections; i++) {
                     printf("Target %d: dist=%dcm angle=%d deg\n\r", i,
@@ -321,7 +527,6 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
         case UCI_RADAR_DATA_ANT_ISOLATION: {
             uci_radar_ant_isolation_ntf_t iso;
             uci_radar_parse_ant_isolation_ntf(payload, len, &iso);
-            uwb_udp_protocol_send_radar_frame(payload, len);
             printf("Isolation: TX%d->RX%d = %ddB\n\r",
                    iso.tx_antenna_id, iso.rx_antenna_id, iso.isolation_db);
             break;
