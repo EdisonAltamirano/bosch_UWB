@@ -132,7 +132,7 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "topic_name":  "/uwb/frame_raw",
-                "output_dir":  "uwb_npz",
+                "output_dir":  "/home/ws/src/uwb_npz",
                 "save_every_n": 1,
             }],
         ),
