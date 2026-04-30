@@ -19,6 +19,7 @@ from rclpy.node import Node
 
 try:
     from sensors.sr250_protocol import (
+        CMD_START_SESSION,
         MSG_TYPE_ACK,
         MSG_TYPE_ERROR,
         MSG_TYPE_RADAR_FRAME,
@@ -26,6 +27,7 @@ try:
         MSG_TYPE_SET_PARAMS_PARTIAL,
         MSG_TYPE_START_RADAR,
         MSG_TYPE_STOP_RADAR,
+        build_uwb_sw_start_session_packet,
         build_partial_radar_config_tlvs,
         build_set_config_full_packet,
         build_set_params_partial_packet,
@@ -38,6 +40,7 @@ try:
     )
 except ImportError:
     from sr250_protocol import (
+        CMD_START_SESSION,
         MSG_TYPE_ACK,
         MSG_TYPE_ERROR,
         MSG_TYPE_RADAR_FRAME,
@@ -45,6 +48,7 @@ except ImportError:
         MSG_TYPE_SET_PARAMS_PARTIAL,
         MSG_TYPE_START_RADAR,
         MSG_TYPE_STOP_RADAR,
+        build_uwb_sw_start_session_packet,
         build_partial_radar_config_tlvs,
         build_set_config_full_packet,
         build_set_params_partial_packet,
@@ -61,11 +65,14 @@ class UWBNode(Node):
     def __init__(self):
         super().__init__("uwb_node")
 
+        self.declare_parameter("protocol_mode", "legacy_tlv")
         self.declare_parameter("stm32_ip", "192.168.1.10")
         self.declare_parameter("stm32_port", 37249)
         self.declare_parameter("listen_ip", "0.0.0.0")
         self.declare_parameter("listen_port", 20001)
         self.declare_parameter("auto_start", True)
+        self.declare_parameter("radar_preset_index", 0)
+        self.declare_parameter("session_duration_ms", 1000)
 
         self.declare_parameter("channel_number", 9)
         self.declare_parameter("preamble_code_index", 26)
@@ -99,32 +106,59 @@ class UWBNode(Node):
         self.declare_parameter("presence_angle_min_deg", -90)
         self.declare_parameter("presence_angle_max_deg", 90)
 
+        self.protocol_mode = str(self.get_parameter("protocol_mode").value)
+        if self.protocol_mode not in {"legacy_tlv", "uwb_sw"}:
+            raise ValueError(
+                f"Unsupported protocol_mode={self.protocol_mode!r}; expected 'legacy_tlv' or 'uwb_sw'"
+            )
+
         self.stm32_ip = self.get_parameter("stm32_ip").value
         self.stm32_port = int(self.get_parameter("stm32_port").value)
         self.listen_ip = self.get_parameter("listen_ip").value
         self.listen_port = int(self.get_parameter("listen_port").value)
         self.auto_start = bool(self.get_parameter("auto_start").value)
+        self.radar_preset_index = int(self.get_parameter("radar_preset_index").value)
+        self.session_duration_ms = int(self.get_parameter("session_duration_ms").value)
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.listen_ip, self.listen_port))
-        self.sock.settimeout(1.0)
-
         self._running = True
-        self._recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
-        self._recv_thread.start()
+        self._recv_thread: Optional[threading.Thread] = None
+
+        if self.protocol_mode == "legacy_tlv":
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.sock.bind((self.listen_ip, self.listen_port))
+            self.sock.settimeout(1.0)
+
+            self._recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
+            self._recv_thread.start()
 
         self._seq = 1
         self._config_applied = False
         self._radar_running = False
         self._pending_auto_start = self.auto_start
 
-        self.send_full_config(self._collect_config())
+        if self.protocol_mode == "legacy_tlv":
+            self.send_full_config(self._collect_config())
+            self.get_logger().info(
+                f"UWB control ready in legacy_tlv mode. Sending commands to "
+                f"{self.stm32_ip}:{self.stm32_port} from local port {self.listen_port}"
+            )
+        else:
+            if self.auto_start:
+                self.send_start_session()
+            self.get_logger().info(
+                f"UWB control ready in uwb_sw mode. Sending CMD_START_SESSION to "
+                f"{self.stm32_ip}:{self.stm32_port} with preset={self.radar_preset_index} "
+                f"duration_ms={self.session_duration_ms}"
+            )
 
-        self.get_logger().info(
-            f"UWB control ready. Sending commands to {self.stm32_ip}:{self.stm32_port} "
-            f"from local port {self.listen_port}"
-        )
+    def _require_legacy_tlv(self, action: str) -> bool:
+        if self.protocol_mode != "legacy_tlv":
+            self.get_logger().warning(
+                f"{action} is only valid in legacy_tlv mode; current mode is {self.protocol_mode}"
+            )
+            return False
+        return True
 
     def _collect_config(self):
         return {
@@ -177,6 +211,8 @@ class UWBNode(Node):
         )
 
     def send_full_config(self, config: dict) -> None:
+        if not self._require_legacy_tlv("send_full_config"):
+            return
         self._config_applied = False
         self._pending_auto_start = self.auto_start
         self._send_packet(
@@ -185,6 +221,8 @@ class UWBNode(Node):
         )
 
     def send_partial_update(self, tlv_payload: bytes) -> None:
+        if not self._require_legacy_tlv("send_partial_update"):
+            return
         self._send_packet(
             build_set_params_partial_packet(self._next_seq(), tlv_payload),
             "SET_PARAMS_PARTIAL",
@@ -194,10 +232,25 @@ class UWBNode(Node):
         self.send_partial_update(build_partial_radar_config_tlvs(partial_config))
 
     def send_start_radar(self) -> None:
+        if not self._require_legacy_tlv("send_start_radar"):
+            return
         self._send_packet(build_start_radar_packet(self._next_seq()), "START_RADAR")
 
     def send_stop_radar(self) -> None:
+        if not self._require_legacy_tlv("send_stop_radar"):
+            return
         self._send_packet(build_stop_radar_packet(self._next_seq()), "STOP_RADAR")
+
+    def send_start_session(self) -> None:
+        packet = build_uwb_sw_start_session_packet(
+            self.radar_preset_index,
+            self.session_duration_ms,
+        )
+        self.sock.sendto(packet, (self.stm32_ip, self.stm32_port))
+        self.get_logger().info(
+            f"Sent START_SESSION cmd_id=0x{CMD_START_SESSION:02X} "
+            f"preset={self.radar_preset_index} duration_ms={self.session_duration_ms}"
+        )
 
     def _recv_loop(self) -> None:
         while self._running:
@@ -261,7 +314,7 @@ class UWBNode(Node):
                 )
 
     def destroy_node(self):
-        if self._running and self._radar_running:
+        if self.protocol_mode == "legacy_tlv" and self._running and self._radar_running:
             try:
                 self.send_stop_radar()
             except Exception:

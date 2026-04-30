@@ -9,16 +9,28 @@ from rclpy.node import Node
 
 try:
     from sensors.sr250_protocol import (
+        CMD_CIR_REPORT,
+        CMD_ERROR_REPORT,
+        CMD_UDP_ETH_ACK,
         MSG_TYPE_RADAR_FRAME,
         parse_cir_udp_payload,
         parse_radar_frame_payload,
+        parse_uwb_sw_ack_packet,
+        parse_uwb_sw_cir_fragment_packet,
+        parse_uwb_sw_error_packet,
         unpack_envelope,
     )
 except ImportError:
     from sr250_protocol import (
+        CMD_CIR_REPORT,
+        CMD_ERROR_REPORT,
+        CMD_UDP_ETH_ACK,
         MSG_TYPE_RADAR_FRAME,
         parse_cir_udp_payload,
         parse_radar_frame_payload,
+        parse_uwb_sw_ack_packet,
+        parse_uwb_sw_cir_fragment_packet,
+        parse_uwb_sw_error_packet,
         unpack_envelope,
     )
 
@@ -35,9 +47,16 @@ class UWBUDPFramePublisher(Node):
     def __init__(self):
         super().__init__("uwb_udp_frame_publisher")
 
+        self.declare_parameter("protocol_mode", "legacy_tlv")
         self.declare_parameter("listen_ip", "0.0.0.0")
         self.declare_parameter("listen_port", 20000)
         self.declare_parameter("topic_name", "/uwb/frame_raw")
+
+        self.protocol_mode = str(self.get_parameter("protocol_mode").value)
+        if self.protocol_mode not in {"legacy_tlv", "uwb_sw"}:
+            raise ValueError(
+                f"Unsupported protocol_mode={self.protocol_mode!r}; expected 'legacy_tlv' or 'uwb_sw'"
+            )
 
         self.listen_ip = self.get_parameter("listen_ip").value
         self.listen_port = int(self.get_parameter("listen_port").value)
@@ -53,10 +72,19 @@ class UWBUDPFramePublisher(Node):
         self._running = True
         self._timer = self.create_timer(0.01, self._poll_socket)
         self._packet_count = 0
+        self._reassembled_seq = 0
+        self._fragment_buffer = bytearray()
 
         self.get_logger().info(
-            f"Listening for RADAR_FRAME packets on {self.listen_ip}:{self.listen_port}"
+            f"Listening for {self.protocol_mode} UWB packets on "
+            f"{self.listen_ip}:{self.listen_port}"
         )
+
+    def _next_seq(self) -> int:
+        self._reassembled_seq = (self._reassembled_seq + 1) & 0xFFFF
+        if self._reassembled_seq == 0:
+            self._reassembled_seq = 1
+        return self._reassembled_seq
 
     def _publish_raw_sr250_payload(
         self,
@@ -110,6 +138,10 @@ class UWBUDPFramePublisher(Node):
             self.get_logger().error(f"UDP receive error: {exc}")
             return
 
+        if self.protocol_mode == "uwb_sw":
+            self._handle_uwb_sw_packet(data, addr)
+            return
+
         try:
             env = unpack_envelope(data)
         except Exception:
@@ -146,6 +178,73 @@ class UWBUDPFramePublisher(Node):
             )
         except Exception as exc:
             self.get_logger().warning(f"Failed to parse RADAR_FRAME payload: {exc}")
+
+    def _handle_uwb_sw_packet(self, data: bytes, addr) -> None:
+        if not data:
+            return
+
+        cmd_id = data[0]
+
+        if cmd_id == CMD_UDP_ETH_ACK:
+            try:
+                ack = parse_uwb_sw_ack_packet(data)
+            except Exception as exc:
+                self.get_logger().warning(f"Failed to parse uwb_sw ACK packet: {exc}")
+                return
+
+            self.get_logger().info(
+                f"uwb_sw ACK from {addr[0]}:{addr[1]} recv_cmd_id=0x{ack['recv_cmd_id']:02X}"
+            )
+            return
+
+        if cmd_id == CMD_ERROR_REPORT:
+            try:
+                err = parse_uwb_sw_error_packet(data)
+            except Exception as exc:
+                self.get_logger().warning(f"Failed to parse uwb_sw ERROR packet: {exc}")
+                return
+
+            self.get_logger().error(
+                f"uwb_sw ERROR from {addr[0]}:{addr[1]} err_id=0x{err['err_id']:02X} "
+                f"({err['err_name']})"
+            )
+            return
+
+        if cmd_id != CMD_CIR_REPORT:
+            self.get_logger().warning(
+                f"Dropping unknown uwb_sw packet from {addr[0]}:{addr[1]} cmd_id=0x{cmd_id:02X}"
+            )
+            return
+
+        try:
+            fragment = parse_uwb_sw_cir_fragment_packet(data)
+        except Exception as exc:
+            self.get_logger().warning(f"Failed to parse uwb_sw CIR fragment: {exc}")
+            self._fragment_buffer.clear()
+            return
+
+        self._fragment_buffer.extend(fragment["data"])
+
+        if not fragment["last_fragment"]:
+            return
+
+        raw_payload = bytes(self._fragment_buffer)
+        self._fragment_buffer.clear()
+
+        try:
+            parsed = parse_cir_udp_payload(raw_payload)
+        except Exception as exc:
+            self.get_logger().warning(f"Failed to parse reassembled uwb_sw CIR payload: {exc}")
+            return
+
+        self._publish_raw_sr250_payload(
+            raw_payload=raw_payload,
+            seq=self._next_seq(),
+            msg_type=MSG_TYPE_RADAR_FRAME,
+            radar_data_type=parsed["radar_data_type"],
+            session_handle=parsed["session_handle"],
+            status=parsed["status"],
+        )
 
     def destroy_node(self):
         self._running = False

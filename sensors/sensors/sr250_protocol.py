@@ -18,6 +18,11 @@ MSG_TYPE_ACK = 0x05
 MSG_TYPE_ERROR = 0x06
 MSG_TYPE_RADAR_FRAME = 0x07
 
+CMD_START_SESSION = 0x01
+CMD_CIR_REPORT = 0x02
+CMD_UDP_ETH_ACK = 0x03
+CMD_ERROR_REPORT = 0x04
+
 TAG_CHANNEL_NUMBER = 0x0001
 TAG_PREAMBLE_CODE_INDEX = 0x0002
 TAG_ANTENNAS_CONFIG_RX = 0x0003
@@ -40,6 +45,16 @@ ERROR_MISSING_REQUIRED_FIELD = 0x0005
 ERROR_INVALID_STATE = 0x0006
 ERROR_UCI_COMMAND_FAILED = 0x0007
 ERROR_UNSUPPORTED_TAG = 0x0008
+
+UWB_SW_ERROR_NAMES = {
+    0x03: "ERR_INIT_UWB_SUBSYSTEM_FAILED",
+    0x05: "ERR_INIT_UWB_RADAR_FAILED",
+    0x07: "ERR_CONFIG_UWB_RADAR_FAILED",
+    0x09: "ERR_START_UWB_RADAR_FAILED",
+    0x0D: "ERR_UWB_RADAR_SESSION_STOP_FAILED",
+    0x0E: "ERR_UWB_RADAR_SESSION_DEINIT_FAILED",
+    0x0F: "ERR_UNKNOWN_USER_CMD_RECEIVED",
+}
 
 METADATA_BYTES = 32
 METADATA_TAPS = 8
@@ -428,6 +443,10 @@ def build_stop_radar_packet(seq: int) -> bytes:
     return pack_envelope(MSG_TYPE_STOP_RADAR, seq, b"")
 
 
+def build_uwb_sw_start_session_packet(setting_idx: int, duration_in_ms: int) -> bytes:
+    return struct.pack("<BBI", CMD_START_SESSION, setting_idx, duration_in_ms)
+
+
 def parse_ack_payload(payload: bytes) -> Dict[str, Any]:
     if len(payload) < 3:
         raise ValueError("ACK payload too short")
@@ -450,6 +469,54 @@ def parse_error_payload(payload: bytes) -> Dict[str, Any]:
         "seq": seq,
         "error_code": error_code,
         "detail": detail,
+    }
+
+
+def parse_uwb_sw_ack_packet(packet: bytes) -> Dict[str, Any]:
+    if len(packet) != 2:
+        raise ValueError(f"uwb_sw ACK packet must be 2 bytes, got {len(packet)}")
+    cmd_id, recv_cmd_id = struct.unpack("<BB", packet)
+    if cmd_id != CMD_UDP_ETH_ACK:
+        raise ValueError(f"Not a uwb_sw ACK packet: cmd_id=0x{cmd_id:02X}")
+    return {
+        "cmd_id": cmd_id,
+        "recv_cmd_id": recv_cmd_id,
+    }
+
+
+def parse_uwb_sw_error_packet(packet: bytes) -> Dict[str, Any]:
+    if len(packet) != 2:
+        raise ValueError(f"uwb_sw ERROR packet must be 2 bytes, got {len(packet)}")
+    cmd_id, err_id = struct.unpack("<BB", packet)
+    if cmd_id != CMD_ERROR_REPORT:
+        raise ValueError(f"Not a uwb_sw ERROR packet: cmd_id=0x{cmd_id:02X}")
+    return {
+        "cmd_id": cmd_id,
+        "err_id": err_id,
+        "err_name": UWB_SW_ERROR_NAMES.get(err_id, "UNKNOWN_ERROR"),
+    }
+
+
+def parse_uwb_sw_cir_fragment_packet(packet: bytes) -> Dict[str, Any]:
+    if len(packet) < 4:
+        raise ValueError(f"uwb_sw CIR fragment too short: {len(packet)} bytes")
+
+    cmd_id = packet[0]
+    if cmd_id != CMD_CIR_REPORT:
+        raise ValueError(f"Not a uwb_sw CIR fragment: cmd_id=0x{cmd_id:02X}")
+
+    last_fragment = packet[1]
+    data_len = le16(packet[2:4])
+    if len(packet) != 4 + data_len:
+        raise ValueError(
+            f"uwb_sw CIR fragment length mismatch: expected {data_len}, got {len(packet) - 4}"
+        )
+
+    return {
+        "cmd_id": cmd_id,
+        "last_fragment": bool(last_fragment),
+        "data_len": data_len,
+        "data": packet[4:],
     }
 
 

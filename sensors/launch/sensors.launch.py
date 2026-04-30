@@ -3,23 +3,29 @@ from launch.actions import TimerAction
 from launch_ros.actions import Node
 
 
+PROTOCOL_MODE = "uwb_sw"
+
+
 # ---------------------------------------------------------------------------
 # Network addressing
 # ---------------------------------------------------------------------------
 # STM32 actual IP confirmed from Ethernet capture (MAC 00:80:E1 = STMicro).
 STM32_IP   = "192.168.1.10"    # ← board IP (NOT 192.168.1.100)
-STM32_PORT = 37249              # command (SET_CONFIG, START, STOP)
-PC_LISTEN_ACK_PORT    = 20001   # uwb_node listens for ACK / ERROR here
-PC_LISTEN_FRAME_PORT  = 20000   # uwb_udp_frame_publisher listens here
+STM32_PORT = 37249              # command port
+PC_LISTEN_ACK_PORT    = 20001   # legacy_tlv only
+PC_LISTEN_FRAME_PORT  = 20000   # uwb_sw uses this for ACK, ERROR, and CIR fragments
 
 # ---------------------------------------------------------------------------
 # Radar configuration sent from PC → STM32 via SET_CONFIG_FULL
 # ---------------------------------------------------------------------------
 RADAR_CFG = {
+    "protocol_mode":             PROTOCOL_MODE,
     "stm32_ip":                  STM32_IP,
     "stm32_port":                STM32_PORT,
     "listen_port":               PC_LISTEN_ACK_PORT,
     "auto_start":                True,
+    "radar_preset_index":        0,
+    "session_duration_ms":       600000,
 
     # ── Standard UCI app-config ──────────────────────────────────────────
     "channel_number":            9,       # UWB channel 9 (≈ 8.0 GHz)
@@ -35,9 +41,9 @@ RADAR_CFG = {
     # ── Vendor radar params ──────────────────────────────────────────────
     "radar_mode":                1,       # 1 = MEDIUM_DISTANCE
     "single_frame_ntf":          0,
-    "rfri_ranging_interval_ms":  96,      # ~10.4 fps
-    "rfri_slot_duration_rstu":   14400,
-    "rfri_slots_per_rr":         4,
+    "rfri_ranging_interval_ms":  100,
+    "rfri_slot_duration_rstu":   12000,
+    "rfri_slots_per_rr":         10,
     "cir_num_samples":           128,     # CIR taps per measurement
     "rx_gain_agc_mode":          0,       # 0 = AGC
     "rx_gain_rxa":               0,
@@ -72,6 +78,7 @@ _INSPECTOR_KEYS = (
 )
 INSPECTOR_CFG = {k: RADAR_CFG[k] for k in _INSPECTOR_KEYS}
 INSPECTOR_CFG["summary_path"] = "/tmp/session_summary.txt"
+INSPECTOR_CFG["protocol_mode"] = PROTOCOL_MODE
 
 
 def generate_launch_description():
@@ -96,6 +103,7 @@ def generate_launch_description():
             name="uwb_udp_frame_publisher",
             output="screen",
             parameters=[{
+                "protocol_mode": PROTOCOL_MODE,
                 "listen_ip":   "0.0.0.0",
                 "listen_port": PC_LISTEN_FRAME_PORT,
                 "topic_name":  "/uwb/frame_raw",
