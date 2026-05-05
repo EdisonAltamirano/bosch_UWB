@@ -5,6 +5,13 @@ from launch_ros.actions import Node
 
 PROTOCOL_MODE = "uwb_sw"
 
+# ---------------------------------------------------------------------------
+# Recording duration — change this one value to control both the STM32 session
+# length and the rosbag recording length.
+# ---------------------------------------------------------------------------
+RECORDING_DURATION_MS = 40_000      # 40 seconds
+BAG_NAME              = "walking"          # "" → usa bag_prefix + timestamp automático
+
 
 # ---------------------------------------------------------------------------
 # Network addressing
@@ -25,7 +32,7 @@ RADAR_CFG = {
     "listen_port":               PC_LISTEN_ACK_PORT,
     "auto_start":                True,
     "radar_preset_index":        0,
-    "session_duration_ms":       600000,
+    "session_duration_ms":       RECORDING_DURATION_MS,
 
     # ── Standard UCI app-config ──────────────────────────────────────────
     "channel_number":            9,       # UWB channel 9 (≈ 8.0 GHz)
@@ -137,11 +144,27 @@ def generate_launch_description():
             }],
         ),
 
-        # ── 4. Control node (delayed so receivers are ready first) ────────────
-        # Sends SET_CONFIG_FULL to the STM32 on port 37249, waits for ACK,
-        # then sends START_RADAR automatically (auto_start=True).
-        # After START_RADAR is ACKed, the STM32 begins streaming RADAR_FRAME
-        # packets to port 20000.
+        # ── 4. Rosbag recorder ───────────────────────────────────────────────
+        # Waits for the first CIR frame, then records /uwb/frame_raw to an
+        # MCAP rosbag for exactly RECORDING_DURATION_MS milliseconds.
+        Node(
+            package="sensors",
+            executable="uwb_rosbag_recorder_node",
+            name="uwb_rosbag_recorder_node",
+            output="screen",
+            parameters=[{
+                "topic_name":            "/uwb/frame_raw",
+                "output_dir":            "/home/ws/src/uwb_rosbags",
+                "bag_prefix":            "uwb_session",
+                "bag_name":              BAG_NAME,
+                "recording_duration_ms": RECORDING_DURATION_MS,
+            }],
+        ),
+
+        # ── 5. Control node (delayed so receivers are ready first) ────────────
+        # uwb_sw mode: sends CMD_START_SESSION to STM32 port 37249 with the
+        # configured preset and duration (= RECORDING_DURATION_MS). The STM32
+        # streams RADAR_FRAME packets for that duration, then stops.
         TimerAction(
             period=2.0,
             actions=[

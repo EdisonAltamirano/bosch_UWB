@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(ros2 bag *)",
+      "Read(//opt/ros/**)",
+      "Bash(printenv ROS_DISTRO)",
+      "Bash(apt-cache search *)",
+      "Bash(dpkg -l)",
+      "Bash(apt-get install *)"
     ]
   }
 }

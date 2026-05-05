@@ -101,30 +101,30 @@ class UWBFrameParserNode(Node):
         )
         output_path = self.output_dir / filename
 
-        np.savez_compressed(
-            output_path,
-            raw_payload=np.frombuffer(raw_payload, dtype=np.uint8),
-            session_handle=np.uint32(parsed["session_handle"]),
-            status=np.uint8(parsed["status"]),
-            radar_data_type=np.uint8(parsed["radar_data_type"]),
-            num_samples=np.uint16(parsed["num_samples"]),
-            block_size=np.uint16(parsed["block_size"]),
-            bytes_per_tap=np.uint8(parsed["bytes_per_tap"]),
-            cir_counters=cir_counters,
-            rx_paths=rx_paths,
-            rx_antenna_ids=rx_antenna_ids,
-            tx_antenna_ids=tx_antenna_ids,
-            timestamps_rx=timestamps_rx,
-            timestamps_tx=timestamps_tx,
-            cir_start_offsets=cir_start_offsets,
-            taps_real=taps_real,
-            taps_imag=taps_imag,
-        )
+        # np.savez_compressed(
+        #     output_path,
+        #     raw_payload=np.frombuffer(raw_payload, dtype=np.uint8),
+        #     session_handle=np.uint32(parsed["session_handle"]),
+        #     status=np.uint8(parsed["status"]),
+        #     radar_data_type=np.uint8(parsed["radar_data_type"]),
+        #     num_samples=np.uint16(parsed["num_samples"]),
+        #     block_size=np.uint16(parsed["block_size"]),
+        #     bytes_per_tap=np.uint8(parsed["bytes_per_tap"]),
+        #     cir_counters=cir_counters,
+        #     rx_paths=rx_paths,
+        #     rx_antenna_ids=rx_antenna_ids,
+        #     tx_antenna_ids=tx_antenna_ids,
+        #     timestamps_rx=timestamps_rx,
+        #     timestamps_tx=timestamps_tx,
+        #     cir_start_offsets=cir_start_offsets,
+        #     taps_real=taps_real,
+        #     taps_imag=taps_imag,
+        # )
 
-        self.get_logger().info(
-            f"Saved parsed frame #{self._frame_count} to {output_path.name} "
-            f"with shape {taps_real.shape}"
-        )
+        # self.get_logger().info(
+        #     f"Saved parsed frame #{self._frame_count} to {output_path.name} "
+        #     f"with shape {taps_real.shape}"
+        # )
 
 
 def main():

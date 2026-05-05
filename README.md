@@ -4,17 +4,21 @@
 
 ```bash
 cd bosch_UWB
-make uwb.up      # build + start
+make uwb.up      # build image + start container
 make uwb.shell   # open a terminal in the container
-make uwb.down    # stop
+make uwb.down    # stop container (keeps it alive — no data lost)
 ```
+
+> `make uwb.down` stops the container without removing it, so installed packages and any in-container state are preserved. To fully remove the container run `docker compose down` manually.
 
 ## Shared volume (host ⇄ container)
 
-This repo is mounted into the container as a **shared volume**:
+This repo is mounted into the container as a **shared volume** at `/home/ws/src`:
 
-- **Edit/create on the host**: changes inside the project appear immediately inside the container /ws/src.
-- **Edit/create inside the container**: changes are written back to your host filesystem (same workspace directory) while operating inside /ws/src.
+- **Edit/create on the host**: changes appear immediately inside the container at `/home/ws/src`.
+- **Edit/create inside the container**: changes are written back to the host filesystem in this same directory.
+
+The container maps to your host UID/GID automatically (via `LOCAL_USER_ID` / `LOCAL_GROUP_ID`), so files created inside the container are owned by your host user and remain editable from the host without permission issues.
 
 ## First-time build (inside the container)
 

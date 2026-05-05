@@ -144,13 +144,12 @@ class UWBNode(Node):
                 f"{self.stm32_ip}:{self.stm32_port} from local port {self.listen_port}"
             )
         else:
+            self.get_logger().info(
+                f"UWB control ready in uwb_sw mode. Target: "
+                f"{self.stm32_ip}:{self.stm32_port}"
+            )
             if self.auto_start:
                 self.send_start_session()
-            self.get_logger().info(
-                f"UWB control ready in uwb_sw mode. Sending CMD_START_SESSION to "
-                f"{self.stm32_ip}:{self.stm32_port} with preset={self.radar_preset_index} "
-                f"duration_ms={self.session_duration_ms}"
-            )
 
     def _require_legacy_tlv(self, action: str) -> bool:
         if self.protocol_mode != "legacy_tlv":

@@ -14,7 +14,7 @@ RUN apt-get update -qq && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install pyserial tqdm numpy opencv-python scipy matplotlib rosbags numba
+RUN pip install pyserial tqdm numpy opencv-python scipy "matplotlib>=3.9" rosbags numba
     
 # Install ROS dependencies
 RUN apt-get update -qq && \

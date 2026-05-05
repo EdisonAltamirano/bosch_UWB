@@ -6,7 +6,7 @@ uwb.up:
 	@$(UWB_ENV) docker compose up -d --build
 uwb.down:
 	@xhost +local:docker
-	@docker compose down
+	@docker compose stop
 # 	@docker rm -f uwb >/dev/null 2>&1 || true
 uwb.restart:
 	@xhost +local:docker

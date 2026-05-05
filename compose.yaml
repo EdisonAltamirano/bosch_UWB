@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
     image: uwb
     container_name: uwb
     network_mode: host

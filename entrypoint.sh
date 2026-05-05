@@ -26,9 +26,12 @@ HOME_DIR="$(getent passwd "${LOCAL_USER_ID}" | cut -d: -f6)"
 # Ensure workspace paths exist (bind mount lives at /home/ws/src)
 mkdir -p /home/ws /home/ws/src
 
-# Try to make the workspace writable for the mapped user. This is best-effort:
-# - bind mounts can only be chowned if the container has permission to do so.
-chown -R "${LOCAL_USER_ID}:${LOCAL_GROUP_ID}" /home/ws >/dev/null 2>&1 || true
+# Chown the workspace root and any container-side subdirs (build, install, log…).
+# Exclude /home/ws/src — that is a bind mount owned by the host user; chowning it
+# from inside the container would change ownership on the host and break host access.
+chown "${LOCAL_USER_ID}:${LOCAL_GROUP_ID}" /home/ws >/dev/null 2>&1 || true
+find /home/ws -maxdepth 1 -mindepth 1 ! -name src -print0 2>/dev/null \
+  | xargs -0 -r chown -R "${LOCAL_USER_ID}:${LOCAL_GROUP_ID}" >/dev/null 2>&1 || true
 
 export HOME="${HOME_DIR}"
 cd /home/ws
