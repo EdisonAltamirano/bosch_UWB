@@ -1,3 +1,5 @@
 .claude
 *.pyc
 docs/
+ground_truth/
+papers/
