@@ -280,6 +280,9 @@ int main(void)
   /* Error message variable */
   udp_err_report_cmd_t err_report_cmd;
 
+  /* System state sent flag */
+  uint8_t sys_state_sent_flag = 0;
+
   /* USER CODE END BSP */
 
   /* Infinite loop */
@@ -292,7 +295,16 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	switch (main_control_state) {
 		case UCI_WAITING_FOR_USER_COMMAND:
+			if (sys_state_sent_flag == 0) {
+				sys_state_sent_flag = 1;
+				err_report_cmd.cmd_id = CMD_SYSTEM_STATE;
+				err_report_cmd.err_id = CMD_SYSTEM_STATE_OK;
+				nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
+			}
 			break;
+		case UCI_SYSTEM_RESET:
+			__NOP();
+			NVIC_SystemReset();
 		case UCI_INIT_SYSTEM:
 			/* -- Sample board code to switch on leds ---- */
 			BSP_LED_On(LED_YELLOW);
@@ -408,6 +420,9 @@ int main(void)
 			else {
 				main_control_state = UCI_WAITING_FOR_USER_COMMAND;
 				printf("Radar session deinitialized: 0x%02X\n\r", st);
+				err_report_cmd.cmd_id = CMD_SYSTEM_STATE;
+				err_report_cmd.err_id = CMD_SYSTEM_STATE_RADAR_SESSION_DONE;
+				nucleo_udp_send(NUCLEO_REMOTE_PORT, err_report_cmd.cmd_id, (uint8_t *)&err_report_cmd, 2);
 			}
 			break;
 		case UCI_UWB_RADAR_SESSION_DEINIT_FAILED:

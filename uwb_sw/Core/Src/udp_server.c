@@ -100,6 +100,23 @@ void udp_receive_callback(void *arg, struct udp_pcb *upcb,
 		user_radar_session_duration_ms = recv_cmd.duration_in_ms;
 		main_control_state = UCI_INIT_SYSTEM;
 	}
+	else if (recv_cmd.cmd_id == CMD_SYSTEM_COMMAND) {
+		recv_cmd.setting_idx = *(uint8_t *)(p->payload+1);
+
+		ack_cmd.cmd_id = CMD_UDP_ETH_ACK;
+		ack_cmd.recv_cmd_id = recv_cmd.cmd_id;
+
+		nucleo_udp_send(NUCLEO_REMOTE_PORT, CMD_UDP_ETH_ACK, (uint8_t *)&ack_cmd, 2);
+
+		if (recv_cmd.setting_idx == CMD_SYSTEM_RESET) {
+			main_control_state = UCI_SYSTEM_RESET;
+		}
+		else {
+			err_report_cmd.cmd_id = CMD_ERROR_REPORT;
+			err_report_cmd.err_id = ERR_UNKNOWN_SYS_CMD_RECEIVED;
+			nucleo_udp_send(NUCLEO_REMOTE_PORT, CMD_UDP_ETH_ACK, (uint8_t *)&err_report_cmd, 2);
+		}
+	}
 	else {
 		err_report_cmd.cmd_id = CMD_ERROR_REPORT;
 		err_report_cmd.err_id = ERR_UNKNOWN_USER_CMD_RECEIVED;

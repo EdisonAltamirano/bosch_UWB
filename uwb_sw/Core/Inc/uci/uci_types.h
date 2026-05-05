@@ -92,6 +92,7 @@ typedef enum {
 	UCI_UWB_RADAR_SESSION_STOP_FAILED   = 0x0D,
 	UCI_UWB_RADAR_SESSION_DEINIT		= 0x0E,
 	UCI_UWB_RADAR_SESSION_DEINIT_FAILED	= 0x0F,
+	UCI_SYSTEM_RESET					= 0x10,
 } uci_main_control_states_t;
 
 /* ── Radar RFRI (Frame Repetition Interval) ── */
