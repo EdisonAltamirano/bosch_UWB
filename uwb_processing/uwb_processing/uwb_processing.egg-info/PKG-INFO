@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: uwb-processing
+Version: 0.1.0
+Summary: Offline UWB radar processing, detection, and spectral analysis tools.
+Home-page: UNKNOWN
+Maintainer: OpenAI Codex
+Maintainer-email: codex@openai.com
+License: Proprietary
+Platform: UNKNOWN
+Provides-Extra: test
+
+UNKNOWN
+

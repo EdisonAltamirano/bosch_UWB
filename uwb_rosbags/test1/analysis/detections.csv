@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+unknown,,True,50.313184202998244,3.0,186.05714416503906,692.4845642089837,1.2000000476837158,-1.9983680248260498,0,8,0.0,50.01026511192322,/home/ws/src/uwb_rosbags/test1/analysis/unknown,Full session auto-window.

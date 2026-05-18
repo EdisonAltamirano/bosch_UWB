@@ -1,4 +1,5 @@
-../Drivers/Src/udp_server.c:22:6:nucleo_udp_init	32	static
-../Drivers/Src/udp_server.c:52:6:udp_receive_callback	32	static
-../Drivers/Src/udp_server.c:70:9:nucleo_udp_send	24	static
-../Drivers/Src/udp_server.c:103:6:nucleo_udp_set_destination	16	static
+../Drivers/Src/udp_server.c:25:6:nucleo_udp_init	32	static
+../Drivers/Src/udp_server.c:58:6:udp_receive_callback	32	static
+../Drivers/Src/udp_server.c:76:9:nucleo_udp_send	56	static
+../Drivers/Src/udp_server.c:132:6:nucleo_udp_set_destination	16	static
+../Drivers/Src/udp_server.c:139:29:nucleo_udp_get_tx_stats	4	static

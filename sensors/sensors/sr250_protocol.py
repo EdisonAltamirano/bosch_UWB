@@ -17,6 +17,7 @@ MSG_TYPE_STOP_RADAR = 0x04
 MSG_TYPE_ACK = 0x05
 MSG_TYPE_ERROR = 0x06
 MSG_TYPE_RADAR_FRAME = 0x07
+MSG_TYPE_RADAR_FRAME_CHUNK = 0x08  # chunked large frame — reassemble before processing
 
 CMD_START_SESSION = 0x01
 CMD_CIR_REPORT = 0x02
@@ -435,8 +436,9 @@ def build_set_params_partial_packet(seq: int, tlv_payload: bytes) -> bytes:
     return pack_envelope(MSG_TYPE_SET_PARAMS_PARTIAL, seq, tlv_payload)
 
 
-def build_start_radar_packet(seq: int) -> bytes:
-    return pack_envelope(MSG_TYPE_START_RADAR, seq, b"")
+def build_start_radar_packet(seq: int, duration_ms: int = 0) -> bytes:
+    payload = struct.pack("<I", duration_ms) if duration_ms > 0 else b""
+    return pack_envelope(MSG_TYPE_START_RADAR, seq, payload)
 
 
 def build_stop_radar_packet(seq: int) -> bytes:
@@ -517,6 +519,20 @@ def parse_uwb_sw_cir_fragment_packet(packet: bytes) -> Dict[str, Any]:
         "last_fragment": bool(last_fragment),
         "data_len": data_len,
         "data": packet[4:],
+    }
+
+
+def parse_radar_frame_chunk_payload(payload: bytes) -> Dict[str, Any]:
+    if len(payload) < 4:
+        raise ValueError(f"RADAR_FRAME_CHUNK payload too short: {len(payload)} bytes")
+    frame_id = struct.unpack_from("<H", payload, 0)[0]
+    chunk_idx = payload[2]
+    total_chunks = payload[3]
+    return {
+        "frame_id": frame_id,
+        "chunk_idx": chunk_idx,
+        "total_chunks": total_chunks,
+        "chunk_data": payload[4:],
     }
 
 

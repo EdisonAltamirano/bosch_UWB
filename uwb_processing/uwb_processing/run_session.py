@@ -1,11 +1,37 @@
 from __future__ import annotations
 
+# Allow direct execution (python3 run_session.py) in addition to module form.
+if __name__ == "__main__" and __package__ is None:
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    __package__ = "uwb_processing"
+
 import argparse
 import csv
 import json
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# Quick-run settings — only change BAG_NAME, then run:
+#   python -m uwb_processing.run_session
+# Paths are resolved relative to the current working directory (/home/ws/src).
+# ---------------------------------------------------------------------------
+BAG_NAME = "test1"
+
+# Resolve roots from the repo src/ directory so the script works regardless
+# of where it is invoked from (e.g. /home/ws vs /home/ws/src).
+# __file__ lives at <src>/uwb_processing/uwb_processing/run_session.py
+# parents[2] → <src>/
+_SRC_ROOT     = Path(__file__).resolve().parents[2]
+_ROSBAGS_ROOT = _SRC_ROOT / "uwb_rosbags"
+_ANNOTATIONS  = _SRC_ROOT / "ground_truth/annotations"
+
+_DEFAULT_INPUT      = _ROSBAGS_ROOT / BAG_NAME
+_DEFAULT_ANNOTATION = _ANNOTATIONS / f"{BAG_NAME}.yaml"   # used only if the file exists
+_DEFAULT_OUTPUT     = _ROSBAGS_ROOT / BAG_NAME / "analysis"
 
 import numpy as np
 
@@ -121,7 +147,7 @@ def process_session(
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run offline UWB processing for one rosbag or NPZ session.")
-    parser.add_argument("--input", required=True, help="Rosbag directory or NPZ directory.")
+    parser.add_argument("--input", default=None, help="Rosbag directory or NPZ directory (defaults to BAG_NAME).")
     parser.add_argument("--annotation", help="YAML annotation file for the session.")
     parser.add_argument("--output-dir", help="Directory for plots and summaries.")
     parser.add_argument("--topic", default="/uwb/frame_raw", help="Rosbag topic containing UWB frames.")
@@ -160,14 +186,21 @@ def config_from_args(args: argparse.Namespace) -> DetectionConfig:
 def main(argv: list[str] | None = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
-    summary, output_dir = process_session(
-        input_path=args.input,
-        annotation_path=args.annotation,
-        output_dir=args.output_dir,
+
+    input_path      = args.input      or _DEFAULT_INPUT
+    output_dir      = args.output_dir or _DEFAULT_OUTPUT
+    annotation_path = args.annotation
+    if annotation_path is None and _DEFAULT_ANNOTATION.exists():
+        annotation_path = _DEFAULT_ANNOTATION
+
+    summary, out = process_session(
+        input_path=input_path,
+        annotation_path=annotation_path,
+        output_dir=output_dir,
         config=config_from_args(args),
         topic=args.topic,
     )
-    print(json.dumps({"output_dir": str(output_dir), "detections": summary["detections"]}, indent=2))
+    print(json.dumps({"output_dir": str(out), "detections": summary["detections"]}, indent=2))
     return 0
 
 

@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +42,34 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+typedef struct
+{
+  uint32_t r0;
+  uint32_t r1;
+  uint32_t r2;
+  uint32_t r3;
+  uint32_t r12;
+  uint32_t lr;
+  uint32_t pc;
+  uint32_t psr;
+  uint32_t cfsr;
+  uint32_t hfsr;
+  uint32_t dfsr;
+  uint32_t afsr;
+  uint32_t mmfar;
+  uint32_t bfar;
+  uint32_t shcsr;
+  uint32_t exc_return;
+  uint32_t sp;
+  uint32_t last_pbuf;
+  uint32_t last_payload;
+  uint32_t last_next;
+  uint32_t last_len;
+  uint32_t last_tot_len;
+  uint32_t last_if_idx;
+} hardfault_debug_t;
+
+volatile hardfault_debug_t g_hardfault_debug;
 
 /* USER CODE END PV */
 
@@ -59,6 +88,12 @@ extern ETH_HandleTypeDef heth;
 extern TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN EV */
+extern volatile uint32_t g_eth_last_pbuf;
+extern volatile uint32_t g_eth_last_payload;
+extern volatile uint32_t g_eth_last_next;
+extern volatile uint32_t g_eth_last_len;
+extern volatile uint32_t g_eth_last_tot_len;
+extern volatile uint32_t g_eth_last_if_idx;
 
 /* USER CODE END EV */
 
@@ -80,19 +115,53 @@ void NMI_Handler(void)
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
+static void HardFault_Handler_C(uint32_t *stacked_regs, uint32_t exc_return)
+{
+  g_hardfault_debug.r0 = stacked_regs[0];
+  g_hardfault_debug.r1 = stacked_regs[1];
+  g_hardfault_debug.r2 = stacked_regs[2];
+  g_hardfault_debug.r3 = stacked_regs[3];
+  g_hardfault_debug.r12 = stacked_regs[4];
+  g_hardfault_debug.lr = stacked_regs[5];
+  g_hardfault_debug.pc = stacked_regs[6];
+  g_hardfault_debug.psr = stacked_regs[7];
+  g_hardfault_debug.cfsr = SCB->CFSR;
+  g_hardfault_debug.hfsr = SCB->HFSR;
+  g_hardfault_debug.dfsr = SCB->DFSR;
+  g_hardfault_debug.afsr = SCB->AFSR;
+  g_hardfault_debug.mmfar = SCB->MMFAR;
+  g_hardfault_debug.bfar = SCB->BFAR;
+  g_hardfault_debug.shcsr = SCB->SHCSR;
+  g_hardfault_debug.exc_return = exc_return;
+  g_hardfault_debug.sp = (uint32_t)stacked_regs;
+  g_hardfault_debug.last_pbuf = (uint32_t)g_eth_last_pbuf;
+  g_hardfault_debug.last_payload = (uint32_t)g_eth_last_payload;
+  g_hardfault_debug.last_next = (uint32_t)g_eth_last_next;
+  g_hardfault_debug.last_len = g_eth_last_len;
+  g_hardfault_debug.last_tot_len = g_eth_last_tot_len;
+  g_hardfault_debug.last_if_idx = g_eth_last_if_idx;
+
+  __disable_irq();
+  __BKPT(0);
+  while (1)
+  {
+  }
+}
+
 /**
   * @brief This function handles Hard fault interrupt.
   */
-void HardFault_Handler(void)
+__attribute__((naked)) void HardFault_Handler(void)
 {
-  /* USER CODE BEGIN HardFault_IRQn 0 */
-
-  /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
+  __asm volatile
+  (
+    "tst lr, #4        \n"
+    "ite eq            \n"
+    "mrseq r0, msp     \n"
+    "mrsne r0, psp     \n"
+    "mov r1, lr        \n"
+    "b HardFault_Handler_C \n"
+  );
 }
 
 /**

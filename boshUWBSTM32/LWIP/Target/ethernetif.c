@@ -33,6 +33,12 @@
 
 /* Within 'USER CODE' section, code will be kept by default at each generation */
 /* USER CODE BEGIN 0 */
+volatile uint32_t g_eth_last_pbuf = 0U;
+volatile uint32_t g_eth_last_payload = 0U;
+volatile uint32_t g_eth_last_next = 0U;
+volatile uint32_t g_eth_last_len = 0U;
+volatile uint32_t g_eth_last_tot_len = 0U;
+volatile uint32_t g_eth_last_if_idx = 0U;
 
 /* USER CODE END 0 */
 
@@ -48,6 +54,7 @@
 /* ETH_RX_BUFFER_SIZE parameter is defined in lwipopts.h */
 
 /* USER CODE BEGIN 1 */
+#define ETHERNETIF_INPUT_BUDGET 8U
 
 /* USER CODE END 1 */
 
@@ -304,7 +311,10 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
   TxConfig.TxBuffer = Txbuffer;
   TxConfig.pData = p;
 
-  HAL_ETH_Transmit(&heth, &TxConfig, ETH_DMA_TRANSMIT_TIMEOUT);
+  if (HAL_ETH_Transmit(&heth, &TxConfig, ETH_DMA_TRANSMIT_TIMEOUT) != HAL_OK)
+  {
+    errval = ERR_IF;
+  }
 
   return errval;
 }
@@ -341,18 +351,29 @@ static struct pbuf * low_level_input(struct netif *netif)
 void ethernetif_input(struct netif *netif)
 {
   struct pbuf *p = NULL;
+  uint32_t budget = ETHERNETIF_INPUT_BUDGET;
 
-  do
+  while (budget > 0U)
   {
     p = low_level_input( netif );
-    if (p != NULL)
+    if (p == NULL)
     {
-      if (netif->input( p, netif) != ERR_OK )
-      {
-        pbuf_free(p);
-      }
+      break;
     }
-  } while(p!=NULL);
+
+    g_eth_last_pbuf = (uint32_t)p;
+    g_eth_last_payload = (uint32_t)p->payload;
+    g_eth_last_next = (uint32_t)p->next;
+    g_eth_last_len = p->len;
+    g_eth_last_tot_len = p->tot_len;
+    g_eth_last_if_idx = p->if_idx;
+
+    if (netif->input( p, netif) != ERR_OK )
+    {
+      pbuf_free(p);
+    }
+    budget--;
+  }
 }
 
 #if !LWIP_ARP

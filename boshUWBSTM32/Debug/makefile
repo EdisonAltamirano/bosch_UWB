@@ -72,8 +72,8 @@ all: main-build
 main-build: boschUWBSTM32.elf secondary-outputs
 
 # Tool invocations
-boschUWBSTM32.elf boschUWBSTM32.map: $(OBJS) $(USER_OBJS) /home/edison/boschUWBSTM32/STM32H743ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "boschUWBSTM32.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/home/edison/boschUWBSTM32/STM32H743ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="boschUWBSTM32.map" -Wl,--gc-sections -static -L"/home/edison/boschUWBSTM32/LWIP" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+boschUWBSTM32.elf boschUWBSTM32.map: $(OBJS) $(USER_OBJS) C:\Users\Usuario\Documents\Stanford\Arbabian\quarter3\bosch\new\bosch_UWB\boshUWBSTM32\STM32H743ZITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "boschUWBSTM32.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\Users\Usuario\Documents\Stanford\Arbabian\quarter3\bosch\new\bosch_UWB\boshUWBSTM32\STM32H743ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="boschUWBSTM32.map" -Wl,--gc-sections -static -L"C:\Users\Usuario\Documents\Stanford\Arbabian\quarter3\bosch\new\bosch_UWB\boshUWBSTM32\LWIP" --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

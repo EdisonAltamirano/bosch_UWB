@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "main.h"
 #include "udp_server.h"
 #include "uci/uci_radar.h"
 #include "uci/uci_types.h"
@@ -13,9 +14,36 @@ typedef struct {
     bool session_initialized;
     bool session_config_valid;
     bool session_running;
+    uint32_t session_duration_ms;  /* 0 = unlimited */
+    uint32_t session_start_tick;
+    uint32_t session_last_debug_tick;
+    uint32_t session_last_frame_rx_tick;
+    uint32_t session_last_frame_tx_tick;
+    uint32_t session_last_frame_drop_tick;
+    uint32_t debug_prev_frame_rx_count;
+    uint32_t debug_prev_frame_tx_ok_count;
+    uint32_t debug_prev_frame_tx_drop_count;
+    uint32_t frame_rx_count;
+    uint32_t frame_tx_ok_count;
+    uint32_t frame_tx_drop_count;
+    uint32_t queue_drop_count;
 } uwb_protocol_state_t;
 
 static uwb_protocol_state_t s_state;
+
+#define UWB_TX_QUEUE_DEPTH 12U
+#define UWB_TX_DRAIN_BUDGET 4U
+
+typedef struct {
+    uint16_t raw_len;
+    uint8_t raw_payload[UWB_RADAR_RAW_MAX_LEN];
+} uwb_radar_tx_item_t;
+
+static uwb_radar_tx_item_t s_tx_queue[UWB_TX_QUEUE_DEPTH];
+static uint8_t s_tx_queue_head;
+static uint8_t s_tx_queue_tail;
+static uint8_t s_tx_queue_count;
+static uint8_t s_tx_queue_high_water;
 
 static uint16_t get_le16(const uint8_t *buf)
 {
@@ -64,11 +92,15 @@ static void uwb_send_ack(uint16_t reply_port, uint16_t seq, uint8_t acked_msg_ty
     uint8_t payload[3];
     uint8_t packet[16];
 
+    (void)reply_port;  /* always reply to the fixed PC listener port */
+
     payload[0] = acked_msg_type;
     put_le16(&payload[1], seq);
 
     uint16_t packet_len = uwb_build_envelope(packet, UWB_MSG_ACK, seq, payload, sizeof(payload));
-    nucleo_udp_send(reply_port, packet, packet_len);
+    printf("[UWB] TX ACK msg=0x%02X seq=%u port=%u len=%u\n\r",
+           acked_msg_type, seq, (unsigned)UWB_ACK_REPLY_PORT, packet_len);
+    nucleo_udp_send(UWB_ACK_REPLY_PORT, packet, packet_len);
 }
 
 static void uwb_send_error(uint16_t reply_port, uint16_t seq,
@@ -77,13 +109,17 @@ static void uwb_send_error(uint16_t reply_port, uint16_t seq,
     uint8_t payload[6];
     uint8_t packet[20];
 
+    (void)reply_port;  /* always reply to the fixed PC listener port */
+
     payload[0] = failed_msg_type;
     put_le16(&payload[1], seq);
     put_le16(&payload[3], error_code);
     payload[5] = detail;
 
     uint16_t packet_len = uwb_build_envelope(packet, UWB_MSG_ERROR, seq, payload, sizeof(payload));
-    nucleo_udp_send(reply_port, packet, packet_len);
+    printf("[UWB] TX ERR failed_msg=0x%02X err=0x%04X detail=0x%02X port=%u\n\r",
+           failed_msg_type, error_code, detail, (unsigned)UWB_ACK_REPLY_PORT);
+    nucleo_udp_send(UWB_ACK_REPLY_PORT, packet, packet_len);
 }
 
 static uint32_t uwb_required_mask(void)
@@ -299,6 +335,10 @@ static uci_status_t uwb_parse_tlvs_into_cfg(const uint8_t *payload, uint16_t pay
 void uwb_udp_protocol_init(void)
 {
     memset(&s_state, 0, sizeof(s_state));
+    s_tx_queue_head = 0U;
+    s_tx_queue_tail = 0U;
+    s_tx_queue_count = 0U;
+    s_tx_queue_high_water = 0U;
 }
 
 void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
@@ -314,16 +354,21 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
 
     (void)addr;
 
+    printf("[UWB] RX %u bytes from port %u\n\r", len, port);
+
     if (data == NULL || len < 8) {
+        printf("[UWB] RX too short (%u)\n\r", len);
         return;
     }
 
     if (data[0] != UWB_UDP_MAGIC_0 || data[1] != UWB_UDP_MAGIC_1) {
+        printf("[UWB] Bad magic: 0x%02X 0x%02X\n\r", data[0], data[1]);
         uwb_send_error(port, 0, 0, UWB_ERR_INVALID_MAGIC, 0);
         return;
     }
 
     if (data[2] != UWB_UDP_PROTOCOL_VERSION) {
+        printf("[UWB] Bad version: 0x%02X\n\r", data[2]);
         uwb_send_error(port, get_le16(&data[4]), data[3], UWB_ERR_INVALID_VERSION, data[2]);
         return;
     }
@@ -332,7 +377,10 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
     seq = get_le16(&data[4]);
     payload_len = get_le16(&data[6]);
 
+    printf("[UWB] msg=0x%02X seq=%u payload=%u\n\r", msg_type, seq, payload_len);
+
     if (len != (uint16_t)(8 + payload_len)) {
+        printf("[UWB] Length mismatch: got %u expected %u\n\r", len, 8 + payload_len);
         uwb_send_error(port, seq, msg_type, UWB_ERR_INVALID_LENGTH, 0);
         return;
     }
@@ -346,26 +394,34 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
         new_cfg.max_measurements = 0;
         new_cfg.use_perform_lprf_cal = false;
 
+        printf("[UWB] SET_CONFIG_FULL: parsing %u bytes of TLVs\n\r", payload_len);
         st = uwb_parse_tlvs_into_cfg(payload, payload_len, &new_cfg, &seen_mask, &bad_tag);
         if (st != UCI_STATUS_OK) {
+            printf("[UWB] TLV parse error: st=0x%02X bad_tag=0x%04X\n\r", st, bad_tag);
             uwb_send_error(port, seq, msg_type,
                            (st == UCI_STATUS_INVALID_PARAM) ? UWB_ERR_UNSUPPORTED_TAG : UWB_ERR_INVALID_TLV,
                            (uint8_t)(bad_tag & 0xFF));
             return;
         }
 
+        printf("[UWB] TLV parse OK: seen=0x%08lX req=0x%08lX\n\r",
+               (unsigned long)seen_mask, (unsigned long)uwb_required_mask());
         if (seen_mask != uwb_required_mask()) {
+            printf("[UWB] Missing required TLVs\n\r");
             uwb_send_error(port, seq, msg_type, UWB_ERR_MISSING_REQUIRED_FIELD, 0);
             return;
         }
 
         s_state.current_cfg = new_cfg;
+        printf("[UWB] Applying config (session_init + configure)...\n\r");
         st = uwb_apply_config(false);
         if (st != UCI_STATUS_OK) {
+            printf("[UWB] Apply config failed: 0x%02X\n\r", st);
             uwb_send_error(port, seq, msg_type, UWB_ERR_UCI_COMMAND_FAILED, st);
             return;
         }
 
+        printf("[UWB] Config applied OK\n\r");
         uwb_send_ack(port, seq, msg_type);
         break;
     }
@@ -397,27 +453,64 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
     }
 
     case UWB_MSG_START_RADAR:
+        printf("[UWB] START_RADAR: cfg_valid=%d sess_init=%d running=%d payload=%u\n\r",
+               s_state.session_config_valid, s_state.session_initialized,
+               s_state.session_running, payload_len);
         if (!s_state.session_config_valid || !s_state.session_initialized) {
+            printf("[UWB] START_RADAR rejected: invalid state\n\r");
             uwb_send_error(port, seq, msg_type, UWB_ERR_INVALID_STATE, 0);
             return;
         }
 
         if (s_state.session_running) {
+            printf("[UWB] START_RADAR: already running, sending ACK\n\r");
             uwb_send_ack(port, seq, msg_type);
             return;
         }
 
+        if (payload_len == 4) {
+            s_state.session_duration_ms = get_le32(payload);
+        } else if (payload_len == 0) {
+            s_state.session_duration_ms = 0;
+        } else {
+            printf("[UWB] START_RADAR: bad payload len %u\n\r", payload_len);
+            uwb_send_error(port, seq, msg_type, UWB_ERR_INVALID_LENGTH, 0);
+            return;
+        }
+
+        printf("[UWB] Starting radar, duration=%lums\n\r",
+               (unsigned long)s_state.session_duration_ms);
         st = uci_radar_start(s_state.session_handle);
         if (st != UCI_STATUS_OK) {
+            printf("[UWB] uci_radar_start failed: 0x%02X\n\r", st);
             uwb_send_error(port, seq, msg_type, UWB_ERR_UCI_COMMAND_FAILED, st);
             return;
         }
 
         s_state.session_running = true;
+        s_state.session_start_tick = HAL_GetTick();
+        s_state.session_last_debug_tick = s_state.session_start_tick;
+        s_state.session_last_frame_rx_tick = s_state.session_start_tick;
+        s_state.session_last_frame_tx_tick = s_state.session_start_tick;
+        s_state.session_last_frame_drop_tick = 0U;
+        s_state.debug_prev_frame_rx_count = 0U;
+        s_state.debug_prev_frame_tx_ok_count = 0U;
+        s_state.debug_prev_frame_tx_drop_count = 0U;
+        s_state.frame_rx_count = 0;
+        s_state.frame_tx_ok_count = 0;
+        s_state.frame_tx_drop_count = 0;
+        s_state.queue_drop_count = 0;
+        s_tx_queue_head = 0U;
+        s_tx_queue_tail = 0U;
+        s_tx_queue_count = 0U;
+        s_tx_queue_high_water = 0U;
+        printf("[UWB] Radar started OK\n\r");
         uwb_send_ack(port, seq, msg_type);
         break;
 
     case UWB_MSG_STOP_RADAR:
+        printf("[UWB] STOP_RADAR: sess_init=%d running=%d\n\r",
+               s_state.session_initialized, s_state.session_running);
         if (!s_state.session_initialized) {
             uwb_send_error(port, seq, msg_type, UWB_ERR_INVALID_STATE, 0);
             return;
@@ -430,11 +523,13 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
 
         st = uci_radar_stop(s_state.session_handle);
         if (st != UCI_STATUS_OK) {
+            printf("[UWB] uci_radar_stop failed: 0x%02X\n\r", st);
             uwb_send_error(port, seq, msg_type, UWB_ERR_UCI_COMMAND_FAILED, st);
             return;
         }
 
         s_state.session_running = false;
+        printf("[UWB] Radar stopped OK\n\r");
         uwb_send_ack(port, seq, msg_type);
         break;
 
@@ -444,12 +539,131 @@ void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
     }
 }
 
+void uwb_udp_protocol_tick(void)
+{
+    if (!s_state.session_running || s_state.session_duration_ms == 0) {
+        return;
+    }
+
+    uint32_t now = HAL_GetTick();
+    uint32_t elapsed = now - s_state.session_start_tick;
+    if ((now - s_state.session_last_debug_tick) >= 1000U) {
+        const udp_tx_debug_stats_t *tx_stats = nucleo_udp_get_tx_stats();
+        uint32_t rx_delta = s_state.frame_rx_count - s_state.debug_prev_frame_rx_count;
+        uint32_t tx_ok_delta = s_state.frame_tx_ok_count - s_state.debug_prev_frame_tx_ok_count;
+        uint32_t tx_drop_delta = s_state.frame_tx_drop_count - s_state.debug_prev_frame_tx_drop_count;
+        uint32_t last_rx_age = now - s_state.session_last_frame_rx_tick;
+        uint32_t last_tx_age = now - s_state.session_last_frame_tx_tick;
+        uint32_t last_drop_age = (s_state.session_last_frame_drop_tick == 0U)
+                ? 0U
+                : (now - s_state.session_last_frame_drop_tick);
+
+        s_state.session_last_debug_tick = now;
+        s_state.debug_prev_frame_rx_count = s_state.frame_rx_count;
+        s_state.debug_prev_frame_tx_ok_count = s_state.frame_tx_ok_count;
+        s_state.debug_prev_frame_tx_drop_count = s_state.frame_tx_drop_count;
+
+        printf("[UWB] stream dbg elapsed=%lums/%lums rx=%lu (+%lu/s) tx_ok=%lu (+%lu/s) tx_drop=%lu (+%lu/s) q_depth=%u q_high=%u q_drop=%lu last_rx_age=%lums last_tx_age=%lums last_drop_age=%lums udp_ok=%lu udp_fail=%lu pbuf_fail=%lu last_err=%ld last_port=%u last_len=%u\n\r",
+               (unsigned long)elapsed,
+               (unsigned long)s_state.session_duration_ms,
+               (unsigned long)s_state.frame_rx_count,
+               (unsigned long)rx_delta,
+               (unsigned long)s_state.frame_tx_ok_count,
+               (unsigned long)tx_ok_delta,
+               (unsigned long)s_state.frame_tx_drop_count,
+               (unsigned long)tx_drop_delta,
+               (unsigned)s_tx_queue_count,
+               (unsigned)s_tx_queue_high_water,
+               (unsigned long)s_state.queue_drop_count,
+               (unsigned long)last_rx_age,
+               (unsigned long)last_tx_age,
+               (unsigned long)last_drop_age,
+               (unsigned long)tx_stats->send_successes,
+               (unsigned long)tx_stats->send_failures,
+               (unsigned long)tx_stats->pbuf_alloc_failures,
+               (long)tx_stats->last_err,
+               (unsigned)tx_stats->last_port,
+               (unsigned)tx_stats->last_len);
+    }
+
+    if (elapsed >= s_state.session_duration_ms) {
+        uci_status_t st = uci_radar_stop(s_state.session_handle);
+        if (st == UCI_STATUS_OK) {
+            s_state.session_running = false;
+            printf("[UWB] Session auto-stopped after %lums frame_rx=%lu frame_tx_ok=%lu frame_tx_drop=%lu\n\r",
+                   (unsigned long)s_state.session_duration_ms,
+                   (unsigned long)s_state.frame_rx_count,
+                   (unsigned long)s_state.frame_tx_ok_count,
+                   (unsigned long)s_state.frame_tx_drop_count);
+        }
+    }
+}
+
+void uwb_udp_protocol_queue_radar_frame(const uint8_t *raw_payload, uint16_t raw_len)
+{
+    if (raw_payload == NULL || raw_len < 6U) {
+        return;
+    }
+
+    s_state.frame_rx_count++;
+    s_state.session_last_frame_rx_tick = HAL_GetTick();
+
+    if (raw_len > UWB_RADAR_RAW_MAX_LEN) {
+        s_state.frame_tx_drop_count++;
+        s_state.queue_drop_count++;
+        s_state.session_last_frame_drop_tick = HAL_GetTick();
+        printf("[UWB] queue reject raw_len=%u max=%u\n\r",
+               (unsigned)raw_len,
+               (unsigned)UWB_RADAR_RAW_MAX_LEN);
+        return;
+    }
+
+    if (s_tx_queue_count >= UWB_TX_QUEUE_DEPTH) {
+        s_state.frame_tx_drop_count++;
+        s_state.queue_drop_count++;
+        s_state.session_last_frame_drop_tick = HAL_GetTick();
+        if ((s_state.queue_drop_count <= 8U) || ((s_state.queue_drop_count % 16U) == 0U)) {
+            printf("[UWB] tx queue full depth=%u drops=%lu raw_len=%u\n\r",
+                   (unsigned)s_tx_queue_count,
+                   (unsigned long)s_state.queue_drop_count,
+                   (unsigned)raw_len);
+        }
+        return;
+    }
+
+    s_tx_queue[s_tx_queue_tail].raw_len = raw_len;
+    memcpy(s_tx_queue[s_tx_queue_tail].raw_payload, raw_payload, raw_len);
+    s_tx_queue_tail = (uint8_t)((s_tx_queue_tail + 1U) % UWB_TX_QUEUE_DEPTH);
+    s_tx_queue_count++;
+    if (s_tx_queue_count > s_tx_queue_high_water) {
+        s_tx_queue_high_water = s_tx_queue_count;
+    }
+}
+
+void uwb_udp_protocol_drain_tx_queue(void)
+{
+    uint8_t budget = UWB_TX_DRAIN_BUDGET;
+
+    while ((budget > 0U) && (s_tx_queue_count > 0U)) {
+        uwb_radar_tx_item_t *item = &s_tx_queue[s_tx_queue_head];
+        uwb_udp_protocol_send_radar_frame(item->raw_payload, item->raw_len);
+        s_tx_queue_head = (uint8_t)((s_tx_queue_head + 1U) % UWB_TX_QUEUE_DEPTH);
+        s_tx_queue_count--;
+        budget--;
+    }
+}
+
 void uwb_udp_protocol_send_radar_frame(const uint8_t *raw_payload, uint16_t raw_len)
 {
+    /* payload_buf: 8-byte frame header + up to 8192 bytes of raw UCI data */
     static uint8_t payload_buf[8200];
+    /* chunk_buf: 4-byte chunk header + one chunk's worth of data, reused per chunk */
+    static uint8_t chunk_buf[4 + UWB_MAX_CHUNK_DATA];
     static uint8_t packet_buf[8216];
+    static uint32_t frame_count = 0;
+    static uint16_t s_frame_id = 0;
+
     uint16_t payload_len;
-    uint16_t packet_len;
     uint32_t session_handle;
     uint8_t status;
     uint8_t radar_data_type;
@@ -457,22 +671,110 @@ void uwb_udp_protocol_send_radar_frame(const uint8_t *raw_payload, uint16_t raw_
     if (raw_payload == NULL || raw_len < 6) {
         return;
     }
-
     if ((uint32_t)raw_len + 8U > sizeof(payload_buf)) {
         return;
     }
 
-    session_handle = get_le32(&raw_payload[0]);
-    status = raw_payload[4];
+    frame_count++;
+    session_handle  = get_le32(&raw_payload[0]);
+    status          = raw_payload[4];
     radar_data_type = raw_payload[5];
 
+    if (frame_count % 50 == 1) {
+        printf("[UWB] CIR frame #%lu type=0x%02X raw_len=%u\n\r",
+               (unsigned long)frame_count, radar_data_type, raw_len);
+    }
+    /* Build the logical payload: 8-byte frame header + raw UCI data */
     put_le32(&payload_buf[0], session_handle);
     payload_buf[4] = status;
     payload_buf[5] = radar_data_type;
     put_le16(&payload_buf[6], raw_len);
     memcpy(&payload_buf[8], raw_payload, raw_len);
-    payload_len = (uint16_t)(8 + raw_len);
+    payload_len = (uint16_t)(8U + raw_len);
 
-    packet_len = uwb_build_envelope(packet_buf, UWB_MSG_RADAR_FRAME, 0, payload_buf, payload_len);
-    nucleo_udp_send(UWB_RADAR_FRAME_PORT, packet_buf, packet_len);
+    if (payload_len <= UWB_MAX_CHUNK_DATA) {
+        /* Fits in one datagram — no IP fragmentation needed */
+        uint16_t pkt_len = uwb_build_envelope(packet_buf, UWB_MSG_RADAR_FRAME,
+                                               0, payload_buf, payload_len);
+        if (nucleo_udp_send(UWB_RADAR_FRAME_PORT, packet_buf, pkt_len) == 0U) {
+            s_state.frame_tx_ok_count++;
+            s_state.session_last_frame_tx_tick = HAL_GetTick();
+        } else {
+            s_state.frame_tx_drop_count++;
+            s_state.session_last_frame_drop_tick = HAL_GetTick();
+            printf("[UWB] frame send fail single raw_len=%u pkt_len=%u frame_rx=%lu frame_tx_ok=%lu frame_tx_drop=%lu\n\r",
+                   raw_len,
+                   pkt_len,
+                   (unsigned long)s_state.frame_rx_count,
+                   (unsigned long)s_state.frame_tx_ok_count,
+                   (unsigned long)s_state.frame_tx_drop_count);
+        }
+        return;
+    }
+
+    /* Large payload: split into MTU-safe RADAR_FRAME_CHUNK packets.
+     * Chunk payload: frame_id(2B LE) | chunk_idx(1B) | total_chunks(1B) | data(N B)
+     * Each UDP datagram stays below 1472 bytes (Ethernet MTU limit). */
+    uint16_t total_chunks = (uint16_t)((payload_len + UWB_MAX_CHUNK_DATA - 1U) / UWB_MAX_CHUNK_DATA);
+    uint16_t offset = 0;
+    bool frame_send_ok = true;
+
+    if (++s_frame_id == 0) s_frame_id = 1;
+
+    if (frame_count % 64U == 1U) {
+        printf("[UWB] frame chunking raw_len=%u payload_len=%u frame_id=%u total_chunks=%u\n\r",
+               raw_len,
+               payload_len,
+               (unsigned)s_frame_id,
+               (unsigned)total_chunks);
+    }
+
+    for (uint16_t i = 0; i < total_chunks; i++) {
+        uint16_t chunk_data_len = (uint16_t)(
+            (offset + UWB_MAX_CHUNK_DATA <= payload_len)
+                ? UWB_MAX_CHUNK_DATA
+                : (payload_len - offset));
+
+        chunk_buf[0] = (uint8_t)(s_frame_id & 0xFF);
+        chunk_buf[1] = (uint8_t)(s_frame_id >> 8);
+        chunk_buf[2] = (uint8_t)i;
+        chunk_buf[3] = (uint8_t)total_chunks;
+        memcpy(&chunk_buf[4], &payload_buf[offset], chunk_data_len);
+
+        uint16_t pkt_len = uwb_build_envelope(packet_buf, UWB_MSG_RADAR_FRAME_CHUNK,
+                                               0, chunk_buf,
+                                               (uint16_t)(4U + chunk_data_len));
+        if (nucleo_udp_send(UWB_RADAR_FRAME_PORT, packet_buf, pkt_len) != 0U) {
+            frame_send_ok = false;
+            printf("[UWB] chunk send fail frame_id=%u chunk=%u/%u chunk_data_len=%u pkt_len=%u raw_len=%u\n\r",
+                   (unsigned)s_frame_id,
+                   (unsigned)(i + 1U),
+                   (unsigned)total_chunks,
+                   (unsigned)chunk_data_len,
+                   (unsigned)pkt_len,
+                   (unsigned)raw_len);
+        }
+        offset += chunk_data_len;
+    }
+
+    if (frame_send_ok) {
+        s_state.frame_tx_ok_count++;
+        s_state.session_last_frame_tx_tick = HAL_GetTick();
+    } else {
+        s_state.frame_tx_drop_count++;
+        s_state.session_last_frame_drop_tick = HAL_GetTick();
+        if ((s_state.frame_tx_drop_count <= 8U) || ((s_state.frame_tx_drop_count % 16U) == 0U)) {
+            const udp_tx_debug_stats_t *tx_stats = nucleo_udp_get_tx_stats();
+            printf("[UWB] frame drop summary frame_id=%u raw_len=%u total_chunks=%u drops=%lu udp_ok=%lu udp_fail=%lu pbuf_fail=%lu last_err=%ld last_len=%u\n\r",
+                   (unsigned)s_frame_id,
+                   (unsigned)raw_len,
+                   (unsigned)total_chunks,
+                   (unsigned long)s_state.frame_tx_drop_count,
+                   (unsigned long)tx_stats->send_successes,
+                   (unsigned long)tx_stats->send_failures,
+                   (unsigned long)tx_stats->pbuf_alloc_failures,
+                   (long)tx_stats->last_err,
+                   (unsigned)tx_stats->last_len);
+        }
+    }
 }

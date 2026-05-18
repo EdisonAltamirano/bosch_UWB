@@ -64,7 +64,7 @@ def preprocess_session(
     if not np.any(roi_mask):
         roi_mask = wall_mask if np.any(wall_mask) else np.ones_like(range_axis_m, dtype=bool)
 
-    # Step 3 — select path with highest power in ROI (AN-SCA-14453 §9.3)
+    # Step 3 — select path with highest power in ROI (AN-SCA-14453 )
     roi_power_by_path = np.mean(np.abs(filtered_all[:, :, roi_mask]) ** 2, axis=(0, 2))
     selected_path = int(np.argmax(roi_power_by_path))
 
@@ -76,7 +76,7 @@ def preprocess_session(
     clutter_removed_mag = np.abs(clutter_hp).astype(np.float32)
     clutter_removed_mag[:, ~wall_mask] = 0.0
 
-    # Step 4 — power (variance) per tap; dominant tap = argmax power (AN-SCA-14453 §9.4)
+    # Step 4 — power (variance) per tap; dominant tap = argmax power (AN-SCA-14453)
     roi_tap_power = np.mean(np.abs(clutter_hp[:, roi_mask]) ** 2, axis=0)
     roi_tap_indices = np.flatnonzero(roi_mask)
     dominant_tap = int(roi_tap_indices[int(np.argmax(roi_tap_power))])

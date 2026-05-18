@@ -213,8 +213,14 @@ int main(void)
     /* Process any pending UCI data from SR250 (dispatches RADAR_RX_NTF to callback) */
     uci_core_process();
 
+    /* Send queued radar notifications outside the SR250 callback path. */
+    uwb_udp_protocol_drain_tx_queue();
+
     /* Process Ethernet / LwIP */
     MX_LWIP_Process();
+
+    /* Auto-stop radar session when timed duration has elapsed */
+    uwb_udp_protocol_tick();
 
 
 
@@ -294,19 +300,15 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
 
         switch (data_type) {
         case UCI_RADAR_DATA_CIR_SAMPLES: {
-            uci_radar_cir_metadata_t meta;
-            const uint8_t *cir_data;
-            uint16_t num_taps;
-            uci_radar_parse_cir_ntf(payload, len, &meta, &cir_data, &num_taps);
-            uwb_udp_protocol_send_radar_frame(payload, len);
-            printf("CIR: rx=%d taps=%d offset=%d\n\r",
-                   meta.rx_path, num_taps, meta.cir_start_offset);
+            /* Queue raw notifications and return quickly so UCI processing does
+             * not block on Ethernet chunking/transmit work. */
+            uwb_udp_protocol_queue_radar_frame(payload, len);
             break;
         }
         case UCI_RADAR_DATA_PRESENCE: {
             uci_radar_presence_ntf_t presence;
             uci_radar_parse_presence_ntf(payload, len, &presence);
-            uwb_udp_protocol_send_radar_frame(payload, len);
+            uwb_udp_protocol_queue_radar_frame(payload, len);
             if (presence.presence_detected) {
                 for (uint8_t i = 0; i < presence.num_detections; i++) {
                     printf("Target %d: dist=%dcm angle=%d deg\n\r", i,
@@ -321,7 +323,7 @@ static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
         case UCI_RADAR_DATA_ANT_ISOLATION: {
             uci_radar_ant_isolation_ntf_t iso;
             uci_radar_parse_ant_isolation_ntf(payload, len, &iso);
-            uwb_udp_protocol_send_radar_frame(payload, len);
+            uwb_udp_protocol_queue_radar_frame(payload, len);
             printf("Isolation: TX%d->RX%d = %ddB\n\r",
                    iso.tx_antenna_id, iso.rx_antenna_id, iso.isolation_db);
             break;

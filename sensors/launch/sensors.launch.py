@@ -3,75 +3,116 @@ from launch.actions import TimerAction
 from launch_ros.actions import Node
 
 
-PROTOCOL_MODE = "uwb_sw"
+# PROTOCOL_MODE = "uwb_sw"
+PROTOCOL_MODE = "legacy_tlv"
 
 # ---------------------------------------------------------------------------
-# Recording duration — change this one value to control both the STM32 session
-# length and the rosbag recording length.
+# Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
-RECORDING_DURATION_MS = 40_000      # 40 seconds
-BAG_NAME              = "walking"          # "" → usa bag_prefix + timestamp automático
+RECORDING_DURATION_MS = 50_000   # milliseconds
+BAG_NAME              = "test1"  # "" → auto timestamp name
 
+# ---------------------------------------------------------------------------
+# Active radar preset — pick one key from RADAR_PRESETS below.
+# ---------------------------------------------------------------------------
+ACTIVE_PRESET = "medium"         # "medium" or "far"
+
+# ---------------------------------------------------------------------------
+# Radar presets — mirrors radar_cfg[] in uwb_sw/Core/Src/main.c.
+# Each entry maps directly to SET_CONFIG_FULL fields sent to the STM32.
+# ---------------------------------------------------------------------------
+RADAR_PRESETS = {
+    # ── Preset 0: UCI_RADAR_MODE_MEDIUM_DISTANCE (0x01) ──────────────────
+    "medium": {
+        "radar_preset_index":        0,
+        "radar_mode":                0x01,   # MEDIUM_DISTANCE, up to ~2 m
+        "channel_number":            9,
+        "preamble_code_index":       26,
+        "antennas_config_rx_mode":   0x02,
+        "ant_rx_rxc_id":             1,
+        "ant_rx_rxb_id":             2,
+        "ant_rx_rxa_id":             0,      # 0 = disabled
+        "ant_tx_id":                 1,
+        "single_frame_ntf":          0,
+        "rfri_ranging_interval_ms":  100,
+        "rfri_slot_duration_rstu":   12000,
+        "rfri_slots_per_rr":         10,
+        "cir_num_samples":           128,
+        "rx_gain_agc_mode":          0,      # 0 = AGC
+        "rx_gain_rxa":               0,
+        "rx_gain_rxb":               0,
+        "rx_gain_rxc":               0,
+        "cir_start_offset_rxc":      0,
+        "cir_start_offset_rxb":      0,
+        "cir_start_offset_rxa":      0,
+        "performance":               0x03,
+        "drift_compensation":        0x0CCD,
+        "presence_mode":             0x00,
+        "presence_periodic_report":  0x04,
+        "presence_sensitivity_q4_4": 60,
+        "presence_gpio_notify":      0x00,
+        "presence_distance_min_cm":  30,
+        "presence_distance_max_cm":  200,
+        "presence_hold_delay_ms":    1600,
+        "presence_angle_min_deg":    -90,
+        "presence_angle_max_deg":    90,
+    },
+    # ── Preset 1: UCI_RADAR_MODE_FAR_DISTANCE (0x03) ─────────────────────
+    "far": {
+        "radar_preset_index":        1,
+        "radar_mode":                0x03,   # FAR_DISTANCE
+        "channel_number":            9,
+        "preamble_code_index":       26,
+        "antennas_config_rx_mode":   0x02,
+        "ant_rx_rxc_id":             1,
+        "ant_rx_rxb_id":             2,
+        "ant_rx_rxa_id":             0,
+        "ant_tx_id":                 1,
+        "single_frame_ntf":          0,
+        "rfri_ranging_interval_ms":  100,
+        "rfri_slot_duration_rstu":   12000,
+        "rfri_slots_per_rr":         10,
+        "cir_num_samples":           128,
+        "rx_gain_agc_mode":          0,
+        "rx_gain_rxa":               0,
+        "rx_gain_rxb":               0,
+        "rx_gain_rxc":               0,
+        "cir_start_offset_rxc":      0,
+        "cir_start_offset_rxb":      0,
+        "cir_start_offset_rxa":      0,
+        "performance":               0x03,
+        "drift_compensation":        0x0CCD,
+        "presence_mode":             0x00,
+        "presence_periodic_report":  0x04,
+        "presence_sensitivity_q4_4": 60,
+        "presence_gpio_notify":      0x00,
+        "presence_distance_min_cm":  30,
+        "presence_distance_max_cm":  200,
+        "presence_hold_delay_ms":    1600,
+        "presence_angle_min_deg":    -90,
+        "presence_angle_max_deg":    90,
+    },
+}
 
 # ---------------------------------------------------------------------------
 # Network addressing
 # ---------------------------------------------------------------------------
-# STM32 actual IP confirmed from Ethernet capture (MAC 00:80:E1 = STMicro).
-STM32_IP   = "192.168.1.10"    # ← board IP (NOT 192.168.1.100)
+STM32_IP   = "192.168.1.10"    # board IP (MAC 00:80:E1 = STMicro)
 STM32_PORT = 37249              # command port
-PC_LISTEN_ACK_PORT    = 20001   # legacy_tlv only
-PC_LISTEN_FRAME_PORT  = 20000   # uwb_sw uses this for ACK, ERROR, and CIR fragments
+PC_LISTEN_ACK_PORT    = 20001   # legacy_tlv ACK listener
+PC_LISTEN_FRAME_PORT  = 20000   # CIR frame listener
 
 # ---------------------------------------------------------------------------
-# Radar configuration sent from PC → STM32 via SET_CONFIG_FULL
+# Full config sent to uwb_node — common transport fields + selected preset.
 # ---------------------------------------------------------------------------
 RADAR_CFG = {
-    "protocol_mode":             PROTOCOL_MODE,
-    "stm32_ip":                  STM32_IP,
-    "stm32_port":                STM32_PORT,
-    "listen_port":               PC_LISTEN_ACK_PORT,
-    "auto_start":                True,
-    "radar_preset_index":        0,
-    "session_duration_ms":       RECORDING_DURATION_MS,
-
-    # ── Standard UCI app-config ──────────────────────────────────────────
-    "channel_number":            9,       # UWB channel 9 (≈ 8.0 GHz)
-    "preamble_code_index":       26,
-
-    # ── Antenna selection ────────────────────────────────────────────────
-    "antennas_config_rx_mode":   0x02,
-    "ant_rx_rxc_id":             1,       # RXC port  → antenna ID 1
-    "ant_rx_rxb_id":             2,       # RXB port  → antenna ID 2
-    "ant_rx_rxa_id":             0,       # 0 = disabled
-    "ant_tx_id":                 1,       # TRA1 port → antenna ID 1
-
-    # ── Vendor radar params ──────────────────────────────────────────────
-    "radar_mode":                1,       # 1 = MEDIUM_DISTANCE
-    "single_frame_ntf":          0,
-    "rfri_ranging_interval_ms":  100,
-    "rfri_slot_duration_rstu":   12000,
-    "rfri_slots_per_rr":         10,
-    "cir_num_samples":           128,     # CIR taps per measurement
-    "rx_gain_agc_mode":          0,       # 0 = AGC
-    "rx_gain_rxa":               0,
-    "rx_gain_rxb":               0,
-    "rx_gain_rxc":               0,
-    "cir_start_offset_rxc":      0,
-    "cir_start_offset_rxb":      0,
-    "cir_start_offset_rxa":      0,
-    "performance":               0x03,
-    "drift_compensation":        0x0CCD,
-
-    # ── Presence detection — disabled (CIR streaming only) ───────────────
-    "presence_mode":             0x00,
-    "presence_periodic_report":  0x04,
-    "presence_sensitivity_q4_4": 60,
-    "presence_gpio_notify":      0x00,
-    "presence_distance_min_cm":  30,
-    "presence_distance_max_cm":  200,
-    "presence_hold_delay_ms":    1600,
-    "presence_angle_min_deg":    -90,
-    "presence_angle_max_deg":    90,
+    "protocol_mode":       PROTOCOL_MODE,
+    "stm32_ip":            STM32_IP,
+    "stm32_port":          STM32_PORT,
+    "listen_port":         PC_LISTEN_ACK_PORT,
+    "auto_start":          True,
+    "session_duration_ms": RECORDING_DURATION_MS,
+    **RADAR_PRESETS[ACTIVE_PRESET],
 }
 
 # Inspector only needs the subset that goes into its summary header

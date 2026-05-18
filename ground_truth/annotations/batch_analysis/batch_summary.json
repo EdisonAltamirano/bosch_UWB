@@ -1,0 +1,67 @@
+{
+  "manifest": "ground_truth/annotations/manifest.yaml",
+  "session_count": 1,
+  "sessions": [
+    {
+      "session_id": "walking",
+      "source_path": "/home/ws/src/uwb_rosbags/walking",
+      "source_kind": "rosbag",
+      "annotation_path": "ground_truth/annotations/walking.yaml",
+      "frame_count": 1179,
+      "path_count": 2,
+      "tap_count": 120,
+      "duration_s": 39.31434369087219,
+      "frame_rate_hz": 25.084575061376203,
+      "selected_path": 0,
+      "dominant_tap": 11,
+      "dominant_range_m": 1.6500000953674316,
+      "detections": [
+        {
+          "label": "walking_human",
+          "expected_present": true,
+          "predicted_present": true,
+          "presence_score": 18.84286398505082,
+          "threshold": 3.0,
+          "motion_energy_mean": 30.562950134277344,
+          "motion_energy_p95": 85.27845497131341,
+          "dominant_range_m": 1.6500000953674316,
+          "dominant_frequency_hz": -7.525372505187988,
+          "selected_path": 0,
+          "selected_tap": 11,
+          "start_s": 0.0,
+          "end_s": 39.3,
+          "artifact_dir": "ground_truth/annotations/batch_analysis/walking/walking_human",
+          "notes": "Full-session motion label for v1 evaluation."
+        }
+      ],
+      "config": {
+        "range_resolution_m": 0.15,
+        "default_range_gate_m": [
+          0.3,
+          6.0
+        ],
+        "wall_clip_m": 0.3,
+        "motion_threshold": 3.0,
+        "background_window_s": 1.5,
+        "doppler_window_s": 4.0,
+        "microdoppler_window_s": 1.5,
+        "stft_overlap": 0.75,
+        "top_k_taps": 6,
+        "zero_doppler_hz": 0.15,
+        "doppler_limit_hz": 6.0,
+        "microdoppler_limit_hz": 10.0
+      },
+      "output_dir": "ground_truth/annotations/batch_analysis/walking"
+    }
+  ],
+  "metrics": {
+    "counted_windows": 1,
+    "true_positive": 1,
+    "false_positive": 0,
+    "true_negative": 0,
+    "false_negative": 0,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0
+  }
+}

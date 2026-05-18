@@ -1,0 +1,11 @@
+session_id: walking
+source: uwb_rosbags/walking
+wall_description: Through-wall walking capture
+notes: Initial manual session-level label for the provided walking rosbag.
+windows:
+  - label: walking_human
+    start_s: 0.0
+    end_s: 39.3
+    wall_present: true
+    expected_range_m: [0.5, 4.0]
+    notes: Full-session motion label for v1 evaluation.

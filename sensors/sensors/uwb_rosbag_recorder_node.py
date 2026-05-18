@@ -52,6 +52,7 @@ class UWBRosbagRecorderNode(Node):
 
         self._writer: Optional[rosbag2_py.SequentialWriter] = None
         self._recording = False
+        self._done = False
         self._stop_timer = None
         self._progress_timer = None
         self._frame_count = 0
@@ -133,6 +134,7 @@ class UWBRosbagRecorderNode(Node):
             self._progress_timer = None
 
         self._recording = False
+        self._done = True
         if self._writer is not None:
             del self._writer
             self._writer = None
@@ -144,6 +146,8 @@ class UWBRosbagRecorderNode(Node):
     # ------------------------------------------------------------------
 
     def _on_frame(self, msg: UWBFrameMsg) -> None:
+        if self._done:
+            return
         if not self._recording:
             if self._writer is None:
                 self._start_recording()

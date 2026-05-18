@@ -230,10 +230,10 @@ class UWBNode(Node):
     def send_partial_config(self, partial_config: dict) -> None:
         self.send_partial_update(build_partial_radar_config_tlvs(partial_config))
 
-    def send_start_radar(self) -> None:
+    def send_start_radar(self, duration_ms: int = 0) -> None:
         if not self._require_legacy_tlv("send_start_radar"):
             return
-        self._send_packet(build_start_radar_packet(self._next_seq()), "START_RADAR")
+        self._send_packet(build_start_radar_packet(self._next_seq(), duration_ms), "START_RADAR")
 
     def send_stop_radar(self) -> None:
         if not self._require_legacy_tlv("send_stop_radar"):
@@ -279,7 +279,7 @@ class UWBNode(Node):
                     self._config_applied = True
                     if self._pending_auto_start:
                         self._pending_auto_start = False
-                        self.send_start_radar()
+                        self.send_start_radar(duration_ms=self.session_duration_ms)
                 elif acked_type == MSG_TYPE_SET_PARAMS_PARTIAL:
                     self._config_applied = True
                 elif acked_type == MSG_TYPE_START_RADAR:

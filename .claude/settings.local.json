@@ -7,7 +7,10 @@
       "Bash(printenv ROS_DISTRO)",
       "Bash(apt-cache search *)",
       "Bash(dpkg -l)",
-      "Bash(apt-get install *)"
+      "Bash(apt-get install *)",
+      "Bash(python -m pytest test/ -x -q)",
+      "Bash(pip3 show *)",
+      "Bash(pip3 install *)"
     ]
   }
 }

@@ -2,9 +2,9 @@ rosbag2_bagfile_information:
   version: 5
   storage_identifier: mcap
   duration:
-    nanoseconds: 39302789640
+    nanoseconds: 38894444812
   starting_time:
-    nanoseconds_since_epoch: 1777952901855127834
+    nanoseconds_since_epoch: 1778821997630431710
   message_count: 1179
   topics_with_message_count:
     - topic_metadata:
@@ -20,7 +20,7 @@ rosbag2_bagfile_information:
   files:
     - path: walking_0.mcap
       starting_time:
-        nanoseconds_since_epoch: 1777952901855127834
+        nanoseconds_since_epoch: 1778821997630431710
       duration:
-        nanoseconds: 39302789640
+        nanoseconds: 38894444812
       message_count: 1179

@@ -190,9 +190,6 @@ class UWBCIRInspector(Node):
             self._decode_cir(raw, lines)
         else:
             lines.append(f"  raw_bytes={len(raw)}  (non-CIR notification)")
-            self.get_logger().info(
-                f"Frame #{self._frame_count}: type={type_name}  raw={len(raw)} B"
-            )
 
         self._append(lines)
 
@@ -237,15 +234,7 @@ class UWBCIRInspector(Node):
                 f"    first 4 taps (real, imag): {first4}",
             ]
 
-        self.get_logger().info(
-            f"CIR #{self._frame_count}:"
-            f"  session=0x{parsed['session_handle']:08X}"
-            f"  samples={ns}"
-            f"  cir_taps={act}"
-            f"  peak[0]={max((math.sqrt(r*r+im*im) for r,im in parsed['samples'][0]['taps']), default=0.0):.1f}"
-            if parsed["samples"] else
-            f"CIR #{self._frame_count}: no samples"
-        )
+        # inspector CIR log suppressed — detail written to session_summary.txt
 
     def _append(self, lines: list):
         with self._summary_path.open("a") as fh:

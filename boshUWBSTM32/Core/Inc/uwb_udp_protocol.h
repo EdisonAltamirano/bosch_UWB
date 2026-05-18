@@ -16,6 +16,7 @@
 #define UWB_MSG_ACK                     0x05
 #define UWB_MSG_ERROR                   0x06
 #define UWB_MSG_RADAR_FRAME             0x07
+#define UWB_MSG_RADAR_FRAME_CHUNK       0x08   /* chunked large frame — reassemble on PC */
 
 #define UWB_TAG_CHANNEL_NUMBER          0x0001
 #define UWB_TAG_PREAMBLE_CODE_INDEX     0x0002
@@ -41,11 +42,17 @@
 #define UWB_ERR_UNSUPPORTED_TAG         0x0008
 
 #define UWB_RADAR_FRAME_PORT           20000
+#define UWB_ACK_REPLY_PORT             20001   /* fixed port PC listens on for ACK/ERROR */
+#define UWB_MAX_CHUNK_DATA             1400U   /* max bytes per chunk — keeps UDP datagrams below MTU */
 #define UWB_SESSION_ID                 0x11223344UL
+#define UWB_RADAR_RAW_MAX_LEN          4608U
 
 void uwb_udp_protocol_init(void);
 void uwb_udp_protocol_handle_packet(const uint8_t *data, uint16_t len,
                                      const ip_addr_t *addr, uint16_t port);
+void uwb_udp_protocol_queue_radar_frame(const uint8_t *raw_payload, uint16_t raw_len);
+void uwb_udp_protocol_drain_tx_queue(void);
 void uwb_udp_protocol_send_radar_frame(const uint8_t *raw_payload, uint16_t raw_len);
+void uwb_udp_protocol_tick(void);
 
 #endif /* INC_UWB_UDP_PROTOCOL_H_ */

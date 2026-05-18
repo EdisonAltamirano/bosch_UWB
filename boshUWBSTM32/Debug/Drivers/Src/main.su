@@ -1,6 +1,6 @@
 ../Drivers/Src/main.c:107:5:main	56	static,ignoring_inline_asm
-../Drivers/Src/main.c:229:6:SystemClock_Config	120	static
-../Drivers/Src/main.c:288:13:app_uci_notification_handler	120	static
-../Drivers/Src/main.c:351:6:MPU_Config	24	static
-../Drivers/Src/main.c:397:6:HAL_TIM_PeriodElapsedCallback	16	static
-../Drivers/Src/main.c:415:6:Error_Handler	4	static,ignoring_inline_asm
+../Drivers/Src/main.c:235:6:SystemClock_Config	120	static
+../Drivers/Src/main.c:294:13:app_uci_notification_handler	104	static
+../Drivers/Src/main.c:353:6:MPU_Config	24	static
+../Drivers/Src/main.c:399:6:HAL_TIM_PeriodElapsedCallback	16	static
+../Drivers/Src/main.c:417:6:Error_Handler	4	static,ignoring_inline_asm

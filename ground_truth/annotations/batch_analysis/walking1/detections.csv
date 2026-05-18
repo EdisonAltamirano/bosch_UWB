@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,motion_energy_mean,motion_energy_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+walking_human,True,True,18.84286398505082,3.0,30.562950134277344,85.27845497131341,1.6500000953674316,-7.525372505187988,0,11,0.0,39.3,ground_truth/annotations/batch_analysis/walking/walking_human,Full-session motion label for v1 evaluation.

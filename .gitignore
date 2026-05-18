@@ -1,5 +1,9 @@
-.claude
+.claude/*
+!.claude/CLAUDE.md
 *.pyc
-docs/
-ground_truth/
+docs/superpowers/specs
+ground_truth/*
+!ground_truth/annotations/
+!ground_truth/annotations/**
 papers/
+Agents.md

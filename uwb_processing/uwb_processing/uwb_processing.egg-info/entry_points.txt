@@ -1,0 +1,4 @@
+[console_scripts]
+uwb_batch_eval = uwb_processing.batch_eval:main
+uwb_run_session = uwb_processing.run_session:main
+
