@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "test1"
+BAG_NAME = "breathing-ahmad-1"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).

@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+unknown,,True,734.4133495522109,3.0,34347.10546875,97627.05234375,1.0500000715255737,-0.5005085468292236,0,7,0.0,10.028341054916382,/home/ws/src/uwb_rosbags/breathing-ahmad-1/analysis/unknown,Full session auto-window.
