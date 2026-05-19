@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+unknown,,True,17.08653498979494,3.0,231.27842712402344,769.142687988281,2.1000001430511475,-0.998887300491333,0,14,0.0,19.66810441017151,/home/ws/src/uwb_rosbags/clutter_second_floor_allen/analysis/unknown,Full session auto-window.

@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "one_corner_reflector_two_people"
+BAG_NAME = "outside_allen_one_person"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).
@@ -84,6 +84,9 @@ def _summary_from_session(session, preprocessed, detections, annotation_path: Pa
         "selected_path": preprocessed.selected_path,
         "dominant_tap": preprocessed.dominant_tap,
         "dominant_range_m": float(preprocessed.range_axis_m[preprocessed.dominant_tap]),
+        "significant_taps": [int(t) for t in preprocessed.significant_taps],
+        "significant_ranges_m": [float(r) for r in preprocessed.significant_ranges_m],
+        "peak_magnitude_threshold_db": preprocessed.config.peak_magnitude_threshold_db,
         "range_doppler_video": None,
         "detections": [result.to_dict() for result in detections],
         "config": asdict(preprocessed.config),
@@ -105,6 +108,7 @@ def process_session(
     output_dir: str | Path | None = None,
     config: DetectionConfig | None = None,
     topic: str = "/uwb/frame_raw",
+    show_video_progress: bool = True,
 ) -> tuple[dict[str, Any], Path]:
     config = config or DetectionConfig()
     session = load_session(input_path, topic=topic)
@@ -121,8 +125,11 @@ def process_session(
 
     save_range_time_plot(preprocessed, base_output / "range_time.png")
     save_peak_tracking_plot(preprocessed, base_output / "peak_tracking.png")
-    range_doppler_video_path = base_output / "range_doppler.mp4"
-    save_range_doppler_video(preprocessed, range_doppler_video_path)
+    range_doppler_video_path = save_range_doppler_video(
+        preprocessed,
+        base_output / "range_doppler.mp4",
+        show_progress=show_video_progress,
+    )
 
     detections = []
     for window in annotation.windows:
@@ -174,6 +181,23 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--doppler-window-s", type=float, default=4.0)
     parser.add_argument("--microdoppler-window-s", type=float, default=1.5)
     parser.add_argument("--stft-overlap", type=float, default=0.75)
+    parser.add_argument(
+        "--peak-magnitude-threshold-db",
+        type=float,
+        default=55.0,
+        help="Plot all local-max range peaks at or above this dB level in peak_tracking.png.",
+    )
+    parser.add_argument(
+        "--peak-min-separation-taps",
+        type=int,
+        default=2,
+        help="Minimum tap spacing between reported peaks.",
+    )
+    parser.add_argument(
+        "--no-video-progress",
+        action="store_true",
+        help="Disable tqdm progress bar during range_doppler video export.",
+    )
     return parser
 
 
@@ -188,6 +212,8 @@ def config_from_args(args: argparse.Namespace) -> DetectionConfig:
         doppler_window_s=args.doppler_window_s,
         microdoppler_window_s=args.microdoppler_window_s,
         stft_overlap=args.stft_overlap,
+        peak_magnitude_threshold_db=args.peak_magnitude_threshold_db,
+        peak_min_separation_taps=args.peak_min_separation_taps,
     )
 
 
@@ -207,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=output_dir,
         config=config_from_args(args),
         topic=args.topic,
+        show_video_progress=not args.no_video_progress,
     )
     print(json.dumps({"output_dir": str(out), "detections": summary["detections"]}, indent=2))
     return 0

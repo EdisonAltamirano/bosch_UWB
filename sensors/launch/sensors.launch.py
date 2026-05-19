@@ -10,7 +10,7 @@ PROTOCOL_MODE = "legacy_tlv"
 # Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
 RECORDING_DURATION_MS = 20_000   # milliseconds
-BAG_NAME              = "one_corner_reflector_two_people"  # "" → auto timestamp name
+BAG_NAME              = "outside_allen_one_person"  # "" → auto timestamp name
 
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.

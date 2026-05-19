@@ -19,6 +19,7 @@ setup(
         "scipy",
         "matplotlib",
         "opencv-python",
+        "tqdm",
         "pyyaml",
     ],
     zip_safe=True,

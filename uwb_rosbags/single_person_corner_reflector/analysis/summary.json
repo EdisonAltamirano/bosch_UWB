@@ -1,0 +1,53 @@
+{
+  "session_id": "single_person_corner_reflector",
+  "source_path": "/home/ws/src/uwb_rosbags/single_person_corner_reflector",
+  "source_kind": "rosbag",
+  "annotation_path": null,
+  "frame_count": 1969,
+  "path_count": 2,
+  "tap_count": 120,
+  "duration_s": 19.681012630462646,
+  "frame_rate_hz": 98.56890392931003,
+  "selected_path": 0,
+  "dominant_tap": 9,
+  "dominant_range_m": 1.350000023841858,
+  "detections": [
+    {
+      "label": "unknown",
+      "expected_present": null,
+      "predicted_present": true,
+      "presence_score": 6134.236178062717,
+      "threshold": 3.0,
+      "power_mean": 385230.40625,
+      "power_p95": 2110602.1999999997,
+      "dominant_range_m": 1.350000023841858,
+      "dominant_frequency_hz": 7.004896640777588,
+      "selected_path": 0,
+      "selected_tap": 9,
+      "start_s": 0.0,
+      "end_s": 19.681012630462646,
+      "artifact_dir": "/home/ws/src/uwb_rosbags/single_person_corner_reflector/analysis/unknown",
+      "notes": "Full session auto-window."
+    }
+  ],
+  "config": {
+    "range_resolution_m": 0.3,
+    "tap_spacing_m": 0.15,
+    "spillover_tap_0idx": 0,
+    "default_range_gate_m": [
+      0.3,
+      6.0
+    ],
+    "wall_clip_m": 0.3,
+    "offline_rds_enabled": false,
+    "rds_cutoff_hz": 0.2,
+    "motion_threshold": 3.0,
+    "doppler_window_s": 4.0,
+    "microdoppler_window_s": 1.5,
+    "stft_overlap": 0.75,
+    "carrier_frequency_hz": 6500000000.0,
+    "zero_doppler_hz": 0.15,
+    "doppler_limit_hz": 6.0,
+    "microdoppler_limit_hz": 10.0
+  }
+}

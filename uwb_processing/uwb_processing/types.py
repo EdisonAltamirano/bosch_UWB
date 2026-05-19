@@ -47,6 +47,9 @@ class DetectionConfig:
     zero_doppler_hz: float = 0.15
     doppler_limit_hz: float = 6.0
     microdoppler_limit_hz: float = 10.0
+    # Peak picking for peak_tracking plot (local maxima on clutter-suppressed |x| in dB).
+    peak_magnitude_threshold_db: float = 55.0
+    peak_min_separation_taps: int = 2
 
 
 @dataclass(slots=True)
@@ -79,6 +82,8 @@ class PreprocessedSession:
     clutter_removed: np.ndarray
     variance_per_tap: np.ndarray
     dominant_tap: int
+    significant_taps: np.ndarray
+    significant_ranges_m: np.ndarray
 
 
 @dataclass(slots=True)

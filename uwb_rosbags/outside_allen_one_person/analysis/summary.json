@@ -1,0 +1,63 @@
+{
+  "session_id": "outside_allen_one_person",
+  "source_path": "/home/ws/src/uwb_rosbags/outside_allen_one_person",
+  "source_kind": "rosbag",
+  "annotation_path": null,
+  "frame_count": 2007,
+  "path_count": 2,
+  "tap_count": 120,
+  "duration_s": 20.041353702545166,
+  "frame_rate_hz": 99.50663092216081,
+  "selected_path": 0,
+  "dominant_tap": 15,
+  "dominant_range_m": 2.25,
+  "significant_taps": [
+    15
+  ],
+  "significant_ranges_m": [
+    2.25
+  ],
+  "peak_magnitude_threshold_db": 55.0,
+  "range_doppler_video": "/home/ws/src/uwb_rosbags/outside_allen_one_person/analysis/range_doppler.mp4",
+  "detections": [
+    {
+      "label": "unknown",
+      "expected_present": null,
+      "predicted_present": true,
+      "presence_score": 331.6250074743234,
+      "threshold": 3.0,
+      "power_mean": 17178.177734375,
+      "power_p95": 62634.73242187498,
+      "dominant_range_m": 2.25,
+      "dominant_frequency_hz": -36.25241470336914,
+      "selected_path": 0,
+      "selected_tap": 15,
+      "start_s": 0.0,
+      "end_s": 20.041353702545166,
+      "artifact_dir": "/home/ws/src/uwb_rosbags/outside_allen_one_person/analysis/unknown",
+      "notes": "Full session auto-window."
+    }
+  ],
+  "config": {
+    "range_resolution_m": 0.3,
+    "tap_spacing_m": 0.15,
+    "spillover_tap_0idx": 0,
+    "default_range_gate_m": [
+      0.3,
+      6.0
+    ],
+    "wall_clip_m": 0.3,
+    "offline_rds_enabled": false,
+    "rds_cutoff_hz": 0.2,
+    "motion_threshold": 3.0,
+    "doppler_window_s": 4.0,
+    "microdoppler_window_s": 1.5,
+    "stft_overlap": 0.75,
+    "carrier_frequency_hz": 6500000000.0,
+    "zero_doppler_hz": 0.15,
+    "doppler_limit_hz": 6.0,
+    "microdoppler_limit_hz": 10.0,
+    "peak_magnitude_threshold_db": 55.0,
+    "peak_min_separation_taps": 2
+  }
+}

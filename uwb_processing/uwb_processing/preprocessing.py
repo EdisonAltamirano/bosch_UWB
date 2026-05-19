@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.signal import lfilter
+from scipy.signal import find_peaks, lfilter
 
 from .types import DetectionConfig, PreprocessedSession, RadarSession
 
@@ -39,6 +39,34 @@ def apply_rds_filter(frames: np.ndarray, frame_rate_hz: float, cutoff_hz: float 
     return (real_out + 1j * imag_out).astype(np.complex64)
 
 
+def linear_to_db(magnitude: np.ndarray) -> np.ndarray:
+    return (20.0 * np.log10(np.asarray(magnitude, dtype=np.float64) + 1e-6)).astype(np.float32)
+
+
+def find_significant_taps(
+    magnitude_profile: np.ndarray,
+    tap_indices: np.ndarray,
+    threshold_db: float,
+    min_separation_taps: int,
+) -> tuple[np.ndarray, int]:
+    """Local maxima in ROI above threshold_db. Returns (tap indices, dominant_tap)."""
+    profile_db = linear_to_db(magnitude_profile)
+    local_peaks, properties = find_peaks(
+        profile_db,
+        height=float(threshold_db),
+        distance=max(1, int(min_separation_taps)),
+    )
+    if local_peaks.size == 0:
+        best_local = int(np.argmax(profile_db))
+        significant = np.asarray([int(tap_indices[best_local])], dtype=np.int32)
+        return significant, int(significant[0])
+
+    heights = properties["peak_heights"]
+    order = np.argsort(heights)[::-1]
+    significant = tap_indices[local_peaks[order]].astype(np.int32)
+    return significant, int(significant[0])
+
+
 def preprocess_session(
     session: RadarSession,
     config: DetectionConfig,
@@ -64,7 +92,22 @@ def preprocess_session(
     if not np.any(roi_mask):
         roi_mask = wall_mask if np.any(wall_mask) else np.ones_like(range_axis_m, dtype=bool)
 
-    # Step 3 — select path with highest power in ROI (AN-SCA-14453 )
+    # -------------------------------------------------------------------------
+    # Step 3 — select path with highest power in ROI (AN-SCA-14453)
+    # -------------------------------------------------------------------------
+    # --- Original (single path, single magnitude map) ---
+    # roi_power_by_path = np.mean(np.abs(filtered_all[:, :, roi_mask]) ** 2, axis=(0, 2))
+    # selected_path = int(np.argmax(roi_power_by_path))
+    #
+    # raw_magnitude = np.abs(session.frames[:, selected_path, :]).astype(np.float32)
+    # raw_magnitude[:, ~wall_mask] = 0.0
+    #
+    # clutter_hp = filtered_all[:, selected_path, :]  # complex64 (F, T)
+    #
+    # clutter_removed_mag = np.abs(clutter_hp).astype(np.float32)
+    # clutter_removed_mag[:, ~wall_mask] = 0.0
+
+    # --- Updated: same path for IQ / RDM / Doppler; peak plot uses max over paths ---
     roi_power_by_path = np.mean(np.abs(filtered_all[:, :, roi_mask]) ** 2, axis=(0, 2))
     selected_path = int(np.argmax(roi_power_by_path))
 
@@ -73,15 +116,31 @@ def preprocess_session(
 
     clutter_hp = filtered_all[:, selected_path, :]  # complex64 (F, T)
 
-    clutter_removed_mag = np.abs(clutter_hp).astype(np.float32)
+    clutter_removed_mag = np.max(np.abs(filtered_all), axis=1).astype(np.float32)
     clutter_removed_mag[:, ~wall_mask] = 0.0
 
-    # Step 4 — power (variance) per tap; dominant tap = argmax power (AN-SCA-14453)
-    roi_tap_power = np.mean(np.abs(clutter_hp[:, roi_mask]) ** 2, axis=0)
-    roi_tap_indices = np.flatnonzero(roi_mask)
-    dominant_tap = int(roi_tap_indices[int(np.argmax(roi_tap_power))])
+    # -------------------------------------------------------------------------
+    # Step 4 — taps with strong returns (AN-SCA-14453)
+    # -------------------------------------------------------------------------
+    # --- Original (one dominant tap only) ---
+    # roi_tap_power = np.mean(np.abs(clutter_hp[:, roi_mask]) ** 2, axis=0)
+    # roi_tap_indices = np.flatnonzero(roi_mask)
+    # dominant_tap = int(roi_tap_indices[int(np.argmax(roi_tap_power))])
+    #
+    # variance_per_tap = np.mean(np.abs(clutter_hp) ** 2, axis=0).astype(np.float32)
 
-    variance_per_tap = np.mean(np.abs(clutter_hp) ** 2, axis=0).astype(np.float32)
+    # --- Updated (all local-max taps above peak_magnitude_threshold_db, e.g. 50–60 dB) ---
+    roi_tap_indices = np.flatnonzero(roi_mask)
+    mean_mag_roi = np.mean(clutter_removed_mag[:, roi_mask], axis=0)
+    significant_taps, dominant_tap = find_significant_taps(
+        mean_mag_roi,
+        roi_tap_indices,
+        threshold_db=config.peak_magnitude_threshold_db,
+        min_separation_taps=config.peak_min_separation_taps,
+    )
+    significant_ranges_m = range_axis_m[significant_taps].astype(np.float32)
+
+    variance_per_tap = np.mean(clutter_removed_mag ** 2, axis=0).astype(np.float32)
 
     return PreprocessedSession(
         session=session,
@@ -94,4 +153,6 @@ def preprocess_session(
         clutter_removed=clutter_removed_mag,
         variance_per_tap=variance_per_tap,
         dominant_tap=dominant_tap,
+        significant_taps=significant_taps,
+        significant_ranges_m=significant_ranges_m,
     )

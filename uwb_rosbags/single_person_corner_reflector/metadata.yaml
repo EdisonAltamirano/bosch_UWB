@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 19621083703
+  starting_time:
+    nanoseconds_since_epoch: 1779153115819209506
+  message_count: 591
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 591
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - single_person_corner_reflector_0.mcap
+  files:
+    - path: single_person_corner_reflector_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1779153115819209506
+      duration:
+        nanoseconds: 19621083703
+      message_count: 591

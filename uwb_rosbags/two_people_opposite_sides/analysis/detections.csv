@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+unknown,,True,72.84260117065791,3.0,20833.244140625,74044.56640624999,1.8000000715255737,19.977397918701172,0,12,0.0,10.01947021484375,/home/ws/src/uwb_rosbags/two_people_opposite_sides/analysis/unknown,Full session auto-window.

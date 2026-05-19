@@ -1,0 +1,2 @@
+label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
+unknown,,True,70.14228064543157,3.0,8861.77734375,22916.661328124992,1.9500000476837158,-3.9976606369018555,0,13,0.0,20.059746026992798,/home/ws/src/uwb_rosbags/person_occluded_room_221/analysis/unknown,Full session auto-window.

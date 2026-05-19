@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 9964273338
+  starting_time:
+    nanoseconds_since_epoch: 1779232182693839633
+  message_count: 301
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 301
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - two_people_opposite_sides_0.mcap
+  files:
+    - path: two_people_opposite_sides_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1779232182693839633
+      duration:
+        nanoseconds: 9964273338
+      message_count: 301
