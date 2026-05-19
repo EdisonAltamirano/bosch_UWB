@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "test1"
+BAG_NAME = "one_corner_reflector_two_people"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).
@@ -38,7 +38,12 @@ import numpy as np
 from .annotations import load_annotation_file
 from .detection import detect_window
 from .loaders import load_session
-from .plotting import save_peak_tracking_plot, save_range_doppler_plot, save_range_time_plot, save_spectrogram_plot
+from .plotting import (
+    save_peak_tracking_plot,
+    save_range_doppler_video,
+    save_range_time_plot,
+    save_spectrogram_plot,
+)
 from .preprocessing import preprocess_session
 from .types import AnnotationWindow, DetectionConfig, SessionAnnotation
 
@@ -79,6 +84,7 @@ def _summary_from_session(session, preprocessed, detections, annotation_path: Pa
         "selected_path": preprocessed.selected_path,
         "dominant_tap": preprocessed.dominant_tap,
         "dominant_range_m": float(preprocessed.range_axis_m[preprocessed.dominant_tap]),
+        "range_doppler_video": None,
         "detections": [result.to_dict() for result in detections],
         "config": asdict(preprocessed.config),
     }
@@ -115,7 +121,8 @@ def process_session(
 
     save_range_time_plot(preprocessed, base_output / "range_time.png")
     save_peak_tracking_plot(preprocessed, base_output / "peak_tracking.png")
-    save_range_doppler_plot(preprocessed, base_output / "range_doppler.png")
+    range_doppler_video_path = base_output / "range_doppler.mp4"
+    save_range_doppler_video(preprocessed, range_doppler_video_path)
 
     detections = []
     for window in annotation.windows:
@@ -140,6 +147,7 @@ def process_session(
         detections=detections,
         annotation_path=Path(annotation_path) if annotation_path else None,
     )
+    summary["range_doppler_video"] = str(range_doppler_video_path)
     (base_output / "summary.json").write_text(json.dumps(summary, indent=2))
     _write_detection_csv(base_output / "detections.csv", detections)
     return summary, base_output

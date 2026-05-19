@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from uwb_processing.detection import detect_window
+from uwb_processing.plotting import save_range_doppler_video
 from uwb_processing.preprocessing import estimate_frame_rate_hz, preprocess_session
 from uwb_processing.types import AnnotationWindow, DetectionConfig, RadarSession
 
@@ -77,3 +78,18 @@ def test_presence_detection_distinguishes_motion():
     assert static_detection.predicted_present is False
     assert moving_detection.presence_score > static_detection.presence_score
     assert moving_detection.dominant_frequency_hz is not None
+
+
+def test_save_range_doppler_video(tmp_path: Path):
+    config = DetectionConfig(
+        range_resolution_m=0.1,
+        tap_spacing_m=0.1,
+        default_range_gate_m=(2.5, 4.5),
+        wall_clip_m=0.5,
+        doppler_window_s=1.0,
+    )
+    preprocessed = preprocess_session(_make_session(moving=True), config=config)
+    output_path = tmp_path / "range_doppler.mp4"
+    save_range_doppler_video(preprocessed, output_path)
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0

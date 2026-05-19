@@ -18,6 +18,7 @@ setup(
         "numpy",
         "scipy",
         "matplotlib",
+        "opencv-python",
         "pyyaml",
     ],
     zip_safe=True,

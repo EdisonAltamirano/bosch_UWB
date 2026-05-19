@@ -1,0 +1,17 @@
+services:
+  uwb:
+    # Docker Desktop on macOS does not support network_mode: host.
+    # Containers reach the Mac host via host.docker.internal.
+    # Explicit UDP port mappings are required so packets from the STM32
+    # (physical Ethernet) can reach nodes inside the container:
+    #   20000/udp — CIR frame data from STM32 → uwb_udp_frame_publisher
+    #   20001/udp — legacy_tlv ACK from STM32 → uwb_node (legacy_tlv mode only)
+    ports:
+      - "20000:20000/udp"
+      - "20001:20001/udp"
+    environment:
+      # For GUI apps (live RDM viewer, gedit): install XQuartz, enable
+      # "Allow connections from network clients", then run: make uwb.xhost
+      DISPLAY: host.docker.internal:0
+      QT_X11_NO_MITSHM: "1"
+      MPLCONFIGDIR: /tmp/matplotlib

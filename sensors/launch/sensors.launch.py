@@ -9,13 +9,13 @@ PROTOCOL_MODE = "legacy_tlv"
 # ---------------------------------------------------------------------------
 # Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
-RECORDING_DURATION_MS = 50_000   # milliseconds
-BAG_NAME              = "test1"  # "" → auto timestamp name
+RECORDING_DURATION_MS = 20_000   # milliseconds
+BAG_NAME              = "one_corner_reflector_two_people"  # "" → auto timestamp name
 
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.
 # ---------------------------------------------------------------------------
-ACTIVE_PRESET = "medium"         # "medium" or "far"
+ACTIVE_PRESET = "medium"         # "medium" or "far" #far (10-17m)
 
 # ---------------------------------------------------------------------------
 # Radar presets — mirrors radar_cfg[] in uwb_sw/Core/Src/main.c.

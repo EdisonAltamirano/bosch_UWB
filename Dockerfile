@@ -7,6 +7,11 @@ RUN apt-get update -qq && \
     build-essential \
     nano \
     python3-pip \
+    python3-tk \
+    tk \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
     gedit \
     terminator \
     gosu \
