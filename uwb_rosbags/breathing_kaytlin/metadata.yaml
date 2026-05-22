@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 29315536183
+  starting_time:
+    nanoseconds_since_epoch: 1779486782887805096
+  message_count: 883
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 883
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - breathing_kaytlin.mcap
+  files:
+    - path: breathing_kaytlin.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1779486782887805096
+      duration:
+        nanoseconds: 29315536183
+      message_count: 883
