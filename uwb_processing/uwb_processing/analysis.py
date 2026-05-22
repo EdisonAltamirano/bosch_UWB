@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import stft
 
-from .types import PreprocessedSession, SpectrogramResult
+from .types import PreprocessedSession, SpectrogramResult, Track
 
 
 def build_slow_time_signal(
@@ -75,6 +75,44 @@ def compute_spectrogram(
         selected_tap=selected_tap,
         selected_path=selected_path,
     )
+
+
+def build_track_slow_time_signal(
+    preprocessed: PreprocessedSession,
+    track: Track,
+    tap_gate_m: float = 0.30,
+) -> tuple[np.ndarray, float]:
+    """Extract complex IQ slow-time signal aligned to a confirmed track's range trajectory.
+
+    For each frame in the track's history, finds the tap of maximum CIR magnitude
+    within ±tap_gate_m of the Kalman-estimated range.  This follows the target as
+    it moves — unlike the session-level dominant_tap which is a single static choice.
+
+    Returns (signal complex64 shape (N,), mean_range_m float).
+    """
+    timestamps = preprocessed.session.timestamps_s
+    cir = preprocessed.highpass_complex            # (N_frames, N_taps)
+    tap_spacing = preprocessed.config.tap_spacing_m
+    gate_taps = max(1, int(round(tap_gate_m / tap_spacing)))
+    n_taps = cir.shape[1]
+
+    signal_vals: list[complex] = []
+    for t_hist, r_hist in zip(track.history_t, track.history_m):
+        fi = int(np.argmin(np.abs(timestamps - t_hist)))
+        center_tap = int(np.round(r_hist / tap_spacing))
+        center_tap = int(np.clip(center_tap, 0, n_taps - 1))
+        lo = max(0, center_tap - gate_taps)
+        hi = min(n_taps - 1, center_tap + gate_taps)
+        local_mag = np.abs(cir[fi, lo : hi + 1])
+        best_tap = lo + int(np.argmax(local_mag))
+        signal_vals.append(complex(cir[fi, best_tap]))
+
+    if not signal_vals:
+        return np.array([], dtype=np.complex64), 0.0
+
+    signal = np.array(signal_vals, dtype=np.complex64)
+    mean_range_m = float(np.mean(track.history_m))
+    return signal, mean_range_m
 
 
 def dominant_frequency_hz(spectrogram: SpectrogramResult, zero_doppler_hz: float) -> float | None:

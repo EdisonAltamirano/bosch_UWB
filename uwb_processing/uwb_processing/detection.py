@@ -43,13 +43,13 @@ def detect_window(
     # Power (E[|x|²]) per frame in ROI — AN-SCA-14453 §9.4
     roi_power_per_frame = np.mean(np.abs(window_signal[:, roi_mask]) ** 2, axis=1)
 
-    # Reference variance: median power across all taps to isolate target tap contribution
+    # Background power reference: median power across all taps to isolate target tap contribution
     all_tap_power = np.mean(np.abs(window_signal) ** 2, axis=0)
-    reference_variance = float(np.median(all_tap_power)) + 1e-6
+    background_power_reference = float(np.median(all_tap_power)) + 1e-6
 
     power_p95 = float(np.percentile(roi_power_per_frame, 95))
     power_mean = float(np.mean(roi_power_per_frame))
-    score_ratio = power_p95 / reference_variance
+    score_ratio = power_p95 / background_power_reference
     predicted_present = bool(score_ratio >= preprocessed.config.motion_threshold)
 
     # Dominant tap by power within ROI

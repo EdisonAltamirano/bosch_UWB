@@ -8,6 +8,51 @@ import numpy as np
 
 
 @dataclass(slots=True)
+class CfarDetection:
+    frame_idx: int
+    tap_idx: int
+    range_m: float
+    magnitude: float
+    threshold: float
+
+
+@dataclass(slots=True)
+class CfarDetectionConfig:
+    num_ref_cells: int = 8
+    num_guard_cells: int = 2
+    pfa: float = 1e-3
+    variant: str = "CA"      # "CA" | "OS" | "GO"
+    os_rank: int = 6
+    cluster_min_gap_taps: int = 2
+    max_peaks_per_frame: int = 4
+
+
+@dataclass
+class Track:
+    track_id: int
+    state: np.ndarray            # [range_m, range_rate_m_s]
+    covariance: np.ndarray       # (2, 2)
+    hit_count: int = 0
+    miss_count: int = 0
+    confirmed: bool = False
+    history_m: list[float] = field(default_factory=list)
+    history_t: list[float] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class TrackingConfig:
+    dt_s: float = 1.0 / 20.0
+    sigma_process_m: float = 0.05
+    sigma_process_v: float = 0.30
+    sigma_meas_m: float = 0.15
+    gate_distance_m: float = 0.75
+    confirm_hits: int = 5
+    max_misses: int = 5
+    init_hits: int = 2
+    init_window_frames: int = 3
+
+
+@dataclass(slots=True)
 class AnnotationWindow:
     label: str
     start_s: float
@@ -73,12 +118,28 @@ class PreprocessedSession:
     config: DetectionConfig
     frame_rate_hz: float
     range_axis_m: np.ndarray
+    roi_mask: np.ndarray
     selected_path: int
     raw_magnitude: np.ndarray
     highpass_complex: np.ndarray
     clutter_removed: np.ndarray
-    variance_per_tap: np.ndarray
+    power_per_tap: np.ndarray
     dominant_tap: int
+    background_power_reference: float
+    presence_threshold: float
+    roi_to_background_power_ratio: np.ndarray
+    presence_mask: np.ndarray
+    peak_tap_per_frame: np.ndarray
+    peak_range_m_per_frame: np.ndarray
+    smoothed_peak_range_m: np.ndarray
+
+    @property
+    def variance_per_tap(self) -> np.ndarray:
+        return self.power_per_tap
+
+    @property
+    def presence_score_per_frame(self) -> np.ndarray:
+        return self.roi_to_background_power_ratio
 
 
 @dataclass(slots=True)

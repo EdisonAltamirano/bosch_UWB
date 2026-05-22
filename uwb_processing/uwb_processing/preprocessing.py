@@ -39,6 +39,18 @@ def apply_rds_filter(frames: np.ndarray, frame_rate_hz: float, cutoff_hz: float 
     return (real_out + 1j * imag_out).astype(np.complex64)
 
 
+def adaptive_exponential_moving_average(values: np.ndarray, window: int = 20) -> np.ndarray:
+    if values.size == 0:
+        return np.asarray([], dtype=np.float32)
+
+    alpha = 2.0 / (float(window) + 1.0)
+    averaged = np.empty(values.shape[0], dtype=np.float32)
+    averaged[0] = np.float32(values[0])
+    for idx in range(1, values.shape[0]):
+        averaged[idx] = np.float32(alpha * values[idx] + (1.0 - alpha) * averaged[idx - 1])
+    return averaged
+
+
 def preprocess_session(
     session: RadarSession,
     config: DetectionConfig,
@@ -81,17 +93,46 @@ def preprocess_session(
     roi_tap_indices = np.flatnonzero(roi_mask)
     dominant_tap = int(roi_tap_indices[int(np.argmax(roi_tap_power))])
 
-    variance_per_tap = np.mean(np.abs(clutter_hp) ** 2, axis=0).astype(np.float32)
+    power_per_tap = np.mean(np.abs(clutter_hp) ** 2, axis=0).astype(np.float32)
+    background_power_reference = float(np.median(power_per_tap)) + 1e-6
+
+    if np.any(roi_mask):
+        roi_to_background_power_ratio = (
+            np.mean(np.abs(clutter_hp[:, roi_mask]) ** 2, axis=1).astype(np.float32)
+            / np.float32(background_power_reference)
+        )
+        roi_tap_indices = np.flatnonzero(roi_mask)
+        peak_tap_local = np.argmax(np.abs(clutter_hp[:, roi_mask]), axis=1)
+        peak_tap_per_frame = roi_tap_indices[peak_tap_local].astype(np.int32)
+    else:
+        roi_to_background_power_ratio = np.zeros(clutter_hp.shape[0], dtype=np.float32)
+        peak_tap_per_frame = np.full(clutter_hp.shape[0], dominant_tap, dtype=np.int32)
+
+    presence_mask = roi_to_background_power_ratio >= np.float32(config.motion_threshold)
+    peak_range_m_per_frame = range_axis_m[peak_tap_per_frame].astype(np.float32)
+    smoothed_peak_range_m = np.full(peak_range_m_per_frame.shape, np.nan, dtype=np.float32)
+    if np.any(presence_mask):
+        smoothed_peak_range_m[presence_mask] = adaptive_exponential_moving_average(
+            peak_range_m_per_frame[presence_mask]
+        )
 
     return PreprocessedSession(
         session=session,
         config=config,
         frame_rate_hz=frame_rate_hz,
         range_axis_m=range_axis_m,
+        roi_mask=roi_mask.astype(bool),
         selected_path=selected_path,
         raw_magnitude=raw_magnitude,
         highpass_complex=clutter_hp.astype(np.complex64),
         clutter_removed=clutter_removed_mag,
-        variance_per_tap=variance_per_tap,
+        power_per_tap=power_per_tap,
         dominant_tap=dominant_tap,
+        background_power_reference=background_power_reference,
+        presence_threshold=float(config.motion_threshold),
+        roi_to_background_power_ratio=roi_to_background_power_ratio.astype(np.float32),
+        presence_mask=presence_mask.astype(bool),
+        peak_tap_per_frame=peak_tap_per_frame,
+        peak_range_m_per_frame=peak_range_m_per_frame,
+        smoothed_peak_range_m=smoothed_peak_range_m,
     )
