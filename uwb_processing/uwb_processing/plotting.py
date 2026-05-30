@@ -9,7 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .types import CfarDetection, PreprocessedSession, SpectrogramResult, Track
+from .types import BreathingResult, CfarDetection, PreprocessedSession, SpectrogramResult, Track
 from .visualization_utils import db_limits, jet_color, magnitude_to_db, power_ratio_to_db
 
 
@@ -407,6 +407,90 @@ def save_range_doppler_heatmap(
         ha="center", va="bottom", fontsize=9, color="#444444", style="italic",
     )
 
+    fig.tight_layout(rect=[0, 0.04, 1, 1])
+    fig.savefig(output_path, dpi=180, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
+def save_breathing_map(result: BreathingResult, output_path: Path) -> None:
+    """Range x breathing-rate heatmap with the extracted rate annotated.
+
+    Range on X, breathing rate (breaths/min) on Y, jet colormap — the breathing
+    analog of the range-Doppler map.  The physiological band is shaded and the
+    detected (range, rate) peak is marked.
+    """
+    import matplotlib.ticker as ticker
+
+    rate_bpm = result.rate_bpm
+    range_axis = result.range_axis_m
+    map_db = result.power_db                        # (F, R)
+
+    if map_db.size == 0 or range_axis.size == 0 or rate_bpm.size == 0:
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        ax.text(0.5, 0.5, "Insufficient data for breathing map",
+                ha="center", va="center")
+        fig.savefig(output_path, dpi=160)
+        plt.close(fig)
+        return
+
+    vmin, vmax = db_limits(map_db)
+
+    fig, ax = plt.subplots(figsize=(9, 5.5), facecolor="white")
+    img = ax.pcolormesh(
+        range_axis,
+        rate_bpm,
+        map_db,
+        cmap="jet",
+        vmin=vmin,
+        vmax=vmax,
+        shading="auto",
+        rasterized=True,
+    )
+    cbar = fig.colorbar(img, ax=ax, pad=0.02)
+    cbar.set_label("Magnitude (dB)", fontsize=11)
+    cbar.ax.tick_params(labelsize=9)
+
+    band_lo_bpm = result.band_hz[0] * 60.0
+    band_hi_bpm = result.band_hz[1] * 60.0
+    ax.axhspan(band_lo_bpm, band_hi_bpm, color="white", alpha=0.08, zorder=1)
+    ax.axhline(band_lo_bpm, color="white", linewidth=0.5, linestyle=":", alpha=0.5)
+    ax.axhline(band_hi_bpm, color="white", linewidth=0.5, linestyle=":", alpha=0.5)
+
+    # Mark the detected breathing peak.
+    if result.best_rate_bpm > 0:
+        ax.plot(
+            result.best_range_m, result.best_rate_bpm,
+            marker="o", markersize=9, markerfacecolor="none",
+            markeredgecolor="white", markeredgewidth=1.6, zorder=5,
+        )
+        ax.annotate(
+            f"{result.best_rate_bpm:.1f} brpm\n@ {result.best_range_m:.2f} m\nSNR {result.snr_db:.1f} dB",
+            xy=(result.best_range_m, result.best_rate_bpm),
+            xytext=(0.98, 0.96), textcoords="axes fraction",
+            ha="right", va="top", color="white", fontsize=9, fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="black", alpha=0.45,
+                      edgecolor="white", linewidth=0.5),
+        )
+
+    ax.set_xlabel("Range (m)", fontsize=12)
+    ax.set_ylabel("Breathing rate (breaths/min)", fontsize=12)
+    ax.set_ylim(0, rate_bpm[-1])
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(6.0))
+    ax.tick_params(axis="both", labelsize=9)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("black")
+
+    ax.set_title(
+        f"Breathing map  (path {result.selected_path}, "
+        f"fs = {result.frame_rate_hz:.1f} Hz)",
+        fontsize=12,
+    )
+    fig.text(
+        0.5, 0.01,
+        "Slow-time spectrum of the clutter-suppressed CIR per range bin; "
+        "shaded band = physiological breathing range.",
+        ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic",
+    )
     fig.tight_layout(rect=[0, 0.04, 1, 1])
     fig.savefig(output_path, dpi=180, bbox_inches="tight", facecolor="white")
     plt.close(fig)

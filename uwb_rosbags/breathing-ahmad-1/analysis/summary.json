@@ -11,6 +11,10 @@
   "selected_path": 0,
   "dominant_tap": 7,
   "dominant_range_m": 1.0500000715255737,
+  "presence_frames": 979,
+  "presence_fraction": 1.0,
+  "presence_score_peak": 1128.2850341796875,
+  "background_power_reference": 132.93202309472656,
   "detections": [
     {
       "label": "unknown",
@@ -48,6 +52,35 @@
     "carrier_frequency_hz": 6500000000.0,
     "zero_doppler_hz": 0.15,
     "doppler_limit_hz": 6.0,
-    "microdoppler_limit_hz": 10.0
+    "microdoppler_limit_hz": 10.0,
+    "breathing_band_hz": [
+      0.1,
+      0.6
+    ],
+    "breathing_display_max_hz": 1.0,
+    "breathing_range_gate_m": [
+      0.3,
+      2.5
+    ]
+  },
+  "cfar_config": {
+    "num_ref_cells": 8,
+    "num_guard_cells": 2,
+    "pfa": 0.001,
+    "variant": "CA",
+    "max_peaks_per_frame": 4
+  },
+  "confirmed_tracks": 0,
+  "breathing": {
+    "best_range_m": 0.9000000357627869,
+    "best_rate_bpm": 18.128736903515016,
+    "best_rate_hz": 0.3021456150585836,
+    "snr_db": 18.49428673154984,
+    "frame_rate_hz": 98.6001857141178,
+    "selected_path": 0,
+    "band_hz": [
+      0.1,
+      0.6
+    ]
   }
 }

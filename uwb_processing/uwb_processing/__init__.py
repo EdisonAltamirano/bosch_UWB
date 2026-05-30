@@ -6,6 +6,7 @@ from .run_session import process_session
 from .tracker import MultiTargetTracker
 from .types import (
     AnnotationWindow,
+    BreathingResult,
     CfarDetection,
     CfarDetectionConfig,
     DetectionConfig,
@@ -20,6 +21,7 @@ from .types import (
 
 __all__ = [
     "AnnotationWindow",
+    "BreathingResult",
     "CfarDetection",
     "CfarDetectionConfig",
     "DetectionConfig",

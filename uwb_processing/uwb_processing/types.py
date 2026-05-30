@@ -92,6 +92,14 @@ class DetectionConfig:
     zero_doppler_hz: float = 0.15
     doppler_limit_hz: float = 6.0
     microdoppler_limit_hz: float = 10.0
+    # --- breathing (vital-sign) analysis ---
+    # Physiological breathing band: ~6-36 breaths/min = 0.1-0.6 Hz.
+    breathing_band_hz: tuple[float, float] = (0.1, 0.6)
+    # Upper limit of the breathing-rate display axis (heart rate would extend
+    # this, but breathing alone only needs ~1 Hz).
+    breathing_display_max_hz: float = 1.0
+    # Range gate to search for a breathing subject (close range, indoors).
+    breathing_range_gate_m: tuple[float, float] = (0.3, 2.5)
 
 
 @dataclass(slots=True)
@@ -151,6 +159,38 @@ class SpectrogramResult:
     selected_range_m: float
     selected_tap: int
     selected_path: int
+
+
+@dataclass(slots=True)
+class BreathingResult:
+    """Range x breathing-rate spectral map and the extracted vital estimate.
+
+    The map is the slow-time FFT of the clutter-suppressed complex CIR at every
+    range bin, with the frequency axis expressed in breaths-per-minute.  A
+    breathing subject appears as a bright spot at their range and rate.
+    """
+
+    range_axis_m: np.ndarray          # (R,) valid range bins (X axis)
+    rate_bpm: np.ndarray              # (F,) breathing-rate axis in breaths/min (Y axis)
+    power_db: np.ndarray              # (F, R) magnitude map in dB
+    best_range_m: float               # range of the strongest in-band peak
+    best_rate_bpm: float              # breathing rate at that peak (breaths/min)
+    best_rate_hz: float               # same rate expressed in Hz
+    snr_db: float                     # in-band peak vs out-of-band median (dB)
+    frame_rate_hz: float
+    selected_path: int
+    band_hz: tuple[float, float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "best_range_m": self.best_range_m,
+            "best_rate_bpm": self.best_rate_bpm,
+            "best_rate_hz": self.best_rate_hz,
+            "snr_db": self.snr_db,
+            "frame_rate_hz": self.frame_rate_hz,
+            "selected_path": self.selected_path,
+            "band_hz": list(self.band_hz),
+        }
 
 
 @dataclass(slots=True)

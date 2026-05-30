@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "one_corner_reflector_two_people"
+BAG_NAME = "breathing-ahmad-1"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).
@@ -39,6 +39,7 @@ QUICKRUN_ENABLE_CIR_ANIMATION = False
 QUICKRUN_ENABLE_AOA_ANIMATION = False
 QUICKRUN_ENABLE_3D_SURFACE = False
 QUICKRUN_ENABLE_RDM_ANIMATION = True        # ← set True to generate range_doppler_animation.mp4
+QUICKRUN_ENABLE_BREATHING = True            # ← set True to generate breathing_map.png + rate estimate
 QUICKRUN_USE_MOVIEPY = False
 QUICKRUN_USE_MULTIPATH_CFAR = False
 QUICKRUN_AOA_RX_SPACING_M = 0.10
@@ -47,7 +48,7 @@ QUICKRUN_AOA_ANGLE_BINS = 121
 
 import numpy as np
 
-from .analysis import build_track_slow_time_signal, compute_spectrogram
+from .analysis import build_track_slow_time_signal, compute_breathing_map, compute_spectrogram
 from .animate_aoa import save_aoa_animation
 from .annotations import load_annotation_file
 from .aoa import build_range_angle_map, estimate_track_aoa_session, pair_rx_channels
@@ -56,6 +57,7 @@ from .detection import detect_window
 from .loaders import load_session
 from .plotting import (
     save_all_cfar_peaks_tap_plot,
+    save_breathing_map,
     save_multi_peak_tracking_plot,
     save_peak_tracking_plot,
     save_presence_monitoring_plot,
@@ -215,6 +217,7 @@ def process_session(
     animate_aoa: bool = False,
     animate_3d: bool = False,
     rdm_animate: bool = False,
+    breathing: bool = False,
     use_moviepy: bool = False,
     use_multipath: bool = False,
     aoa_rx_spacing_m: float = 0.10,
@@ -245,6 +248,17 @@ def process_session(
 
     # --- scientific Range-Doppler heatmap (jet, range on X, velocity on Y) ---
     save_range_doppler_heatmap(preprocessed, base_output / "range_doppler_heatmap.png")
+
+    # --- breathing (vital-sign) map: range x breathing-rate + rate estimate ---
+    breathing_result = None
+    if breathing:
+        breathing_result = compute_breathing_map(preprocessed)
+        save_breathing_map(breathing_result, base_output / "breathing_map.png")
+        print(
+            f"[breathing] rate={breathing_result.best_rate_bpm:.1f} brpm "
+            f"@ {breathing_result.best_range_m:.2f} m "
+            f"(SNR {breathing_result.snr_db:.1f} dB)"
+        )
     if rdm_animate:
         print("[rdm] generating Range-Doppler animation ...")
         save_range_doppler_heatmap_animation(
@@ -410,6 +424,8 @@ def process_session(
         "max_peaks_per_frame": cfar_config.max_peaks_per_frame,
     }
     summary["confirmed_tracks"] = len(all_confirmed)
+    if breathing_result is not None:
+        summary["breathing"] = breathing_result.to_dict()
     (base_output / "summary.json").write_text(json.dumps(summary, indent=2))
     _write_detection_csv(base_output / "detections.csv", detections)
     return summary, base_output
@@ -457,6 +473,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     # Visualisation
     parser.add_argument("--rdm-animate", action="store_true", default=QUICKRUN_ENABLE_RDM_ANIMATION,
                         help="Produce range_doppler_animation.mp4 via sliding-window FFT.")
+    parser.add_argument("--breathing", action="store_true", default=QUICKRUN_ENABLE_BREATHING,
+                        help="Produce breathing_map.png (range x breathing-rate) and estimate the breathing rate.")
     parser.add_argument("--animate", action="store_true", default=QUICKRUN_ENABLE_CIR_ANIMATION,
                         help="Produce cir_animation.mp4 (requires ffmpeg).")
     parser.add_argument("--animate-aoa", action="store_true", default=QUICKRUN_ENABLE_AOA_ANIMATION,
@@ -529,6 +547,7 @@ def main(argv: list[str] | None = None) -> int:
             animate_aoa=args.animate_aoa,
             animate_3d=args.animate_3d,
             rdm_animate=args.rdm_animate,
+            breathing=args.breathing,
             use_moviepy=args.use_moviepy,
             use_multipath=args.multipath,
             aoa_rx_spacing_m=args.aoa_rx_spacing_m,

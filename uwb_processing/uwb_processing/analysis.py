@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.signal import stft
 
-from .types import PreprocessedSession, SpectrogramResult, Track
+from .types import BreathingResult, PreprocessedSession, SpectrogramResult, Track
+from .visualization_utils import magnitude_to_db
 
 
 def build_slow_time_signal(
@@ -113,6 +114,102 @@ def build_track_slow_time_signal(
     signal = np.array(signal_vals, dtype=np.complex64)
     mean_range_m = float(np.mean(track.history_m))
     return signal, mean_range_m
+
+
+def compute_breathing_map(
+    preprocessed: PreprocessedSession,
+    *,
+    band_hz: tuple[float, float] | None = None,
+    display_max_hz: float | None = None,
+    range_gate_m: tuple[float, float] | None = None,
+) -> BreathingResult:
+    """Build a range x breathing-rate map and extract the breathing estimate.
+
+    Unlike a velocity range-Doppler map (which resolves gross motion), breathing
+    is a sub-centimetre chest displacement that phase-modulates the CIR at the
+    subject's range bin.  Here we take the slow-time FFT of the *complex*
+    clutter-suppressed CIR at every range bin so that this tiny phase modulation
+    shows up as spectral energy in the physiological band (~0.1-0.6 Hz).  The
+    whole session is transformed at once to maximise frequency resolution
+    (df = 1 / T_obs), so a 60 s recording resolves the rate to ~1 breath/min.
+
+    The strongest in-band peak across all range bins gives the subject's range
+    and breathing rate.
+    """
+    cfg = preprocessed.config
+    band_hz = band_hz if band_hz is not None else cfg.breathing_band_hz
+    display_max_hz = display_max_hz if display_max_hz is not None else cfg.breathing_display_max_hz
+    range_gate_m = range_gate_m if range_gate_m is not None else cfg.breathing_range_gate_m
+
+    signal = preprocessed.highpass_complex            # (N, K) complex
+    n_frames = signal.shape[0]
+    fs = float(preprocessed.frame_rate_hz)
+    range_axis = preprocessed.range_axis_m
+
+    low_m = max(range_gate_m[0], cfg.wall_clip_m)
+    high_m = range_gate_m[1]
+    gate = (range_axis >= low_m) & (range_axis <= high_m)
+    if not np.any(gate):
+        gate = range_axis >= cfg.wall_clip_m
+    range_valid = range_axis[gate]
+    gated = signal[:, gate]                           # (N, R)
+
+    # Slow-time FFT (Hann-windowed) of the complex CIR per range bin.
+    window = np.hanning(n_frames).reshape(-1, 1)
+    spectrum = np.fft.fft(gated * window, axis=0)     # (N, R)
+    freqs = np.fft.fftfreq(n_frames, d=1.0 / fs)
+
+    # Keep the positive-frequency band up to the display limit.  Breathing
+    # phase modulation is captured on the positive side of the complex spectrum.
+    keep = (freqs >= 0.0) & (freqs <= display_max_hz)
+    freqs_pos = freqs[keep]
+    mag = np.abs(spectrum[keep, :])                   # (F, R)
+    power_db = magnitude_to_db(mag)
+    rate_bpm = freqs_pos * 60.0
+
+    band = (freqs_pos >= band_hz[0]) & (freqs_pos <= band_hz[1])
+    if not np.any(band) or freqs_pos.size == 0:
+        # Not enough observation time to resolve the breathing band.
+        return BreathingResult(
+            range_axis_m=range_valid,
+            rate_bpm=rate_bpm,
+            power_db=power_db,
+            best_range_m=float(range_valid[0]) if range_valid.size else 0.0,
+            best_rate_bpm=0.0,
+            best_rate_hz=0.0,
+            snr_db=0.0,
+            frame_rate_hz=fs,
+            selected_path=int(preprocessed.selected_path),
+            band_hz=tuple(band_hz),
+        )
+
+    band_mag = mag[band, :]                           # (Fb, R)
+    band_freqs = freqs_pos[band]
+    # Strongest in-band response per range bin, then the best range bin overall.
+    peak_per_bin = band_mag.max(axis=0)               # (R,)
+    best_bin = int(np.argmax(peak_per_bin))
+    best_freq_idx = int(np.argmax(band_mag[:, best_bin]))
+    best_rate_hz = float(band_freqs[best_freq_idx])
+
+    # SNR: in-band peak vs the median of the out-of-band spectrum in that column.
+    column = mag[:, best_bin]
+    out_of_band = column[~band]
+    noise_ref = float(np.median(out_of_band)) if out_of_band.size else 0.0
+    peak_val = float(column[band][best_freq_idx])
+    snr_db = float(20.0 * np.log10((peak_val + 1e-9) / (noise_ref + 1e-9)))
+
+    return BreathingResult(
+        range_axis_m=range_valid,
+        rate_bpm=rate_bpm,
+        power_db=power_db,
+        best_range_m=float(range_valid[best_bin]),
+        best_rate_bpm=best_rate_hz * 60.0,
+        best_rate_hz=best_rate_hz,
+        snr_db=snr_db,
+        frame_rate_hz=fs,
+        selected_path=int(preprocessed.selected_path),
+        band_hz=tuple(band_hz),
+    )
 
 
 def dominant_frequency_hz(spectrogram: SpectrogramResult, zero_doppler_hz: float) -> float | None:

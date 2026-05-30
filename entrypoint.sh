@@ -24,7 +24,7 @@ USER_NAME="$(getent passwd "${LOCAL_USER_ID}" | cut -d: -f1)"
 HOME_DIR="$(getent passwd "${LOCAL_USER_ID}" | cut -d: -f6)"
 
 # Ensure workspace paths exist (bind mount lives at /home/ws/src)
-mkdir -p /home/ws /home/ws/src
+mkdir -p /home/ws /home/ws/src /home/ws/.cache/matplotlib
 
 # Chown the workspace root and any container-side subdirs (build, install, log…).
 # Exclude /home/ws/src — that is a bind mount owned by the host user; chowning it
@@ -34,6 +34,7 @@ find /home/ws -maxdepth 1 -mindepth 1 ! -name src -print0 2>/dev/null \
   | xargs -0 -r chown -R "${LOCAL_USER_ID}:${LOCAL_GROUP_ID}" >/dev/null 2>&1 || true
 
 export HOME="${HOME_DIR}"
+export MPLCONFIGDIR=/home/ws/.cache/matplotlib
 cd /home/ws
 
 exec gosu "${LOCAL_USER_ID}:${LOCAL_GROUP_ID}" "$@"
