@@ -22,10 +22,18 @@ class TrackAoA:
     frame_idx: int
 
 
-def _nearest_detection_tap_idx(detections, target_range_m: float, default_tap_idx: int = 0) -> int:
+def _nearest_detection_tap_idx(
+    detections,
+    target_range_m: float,
+    default_tap_idx: int = 0,
+    gate_m: float = 0.75,
+) -> int | None:
+    """Return the tap index of the nearest CFAR detection within gate_m, or None if no match."""
     if not detections:
-        return int(default_tap_idx)
-    nearest = min(detections, key=lambda detection: abs(float(detection.range_m) - target_range_m))
+        return None
+    nearest = min(detections, key=lambda d: abs(float(d.range_m) - target_range_m))
+    if abs(float(nearest.range_m) - target_range_m) > gate_m:
+        return None
     return int(nearest.tap_idx)
 
 
@@ -80,6 +88,8 @@ def estimate_track_aoa_session(
     carrier_frequency_hz: float,
     rx_spacing_m: float,
     fov_limit_deg: float,
+    include_detection_fallback: bool = True,
+    min_track_history_points: int = 1,
 ) -> list[list[TrackAoA]]:
     all_track_aoas: list[list[TrackAoA]] = []
     previous_angles_deg: dict[int, float] = {}
@@ -89,7 +99,14 @@ def estimate_track_aoa_session(
         detections = detections_per_frame[frame_idx] if frame_idx < len(detections_per_frame) else []
 
         for track in tracks:
-            tap_idx = _nearest_detection_tap_idx(detections, target_range_m=float(track.state[0]), default_tap_idx=0)
+            if len(getattr(track, "history_m", ())) < int(min_track_history_points):
+                continue
+            tap_idx = _nearest_detection_tap_idx(
+                detections, target_range_m=float(track.state[0]),
+            )
+            # Skip frames with no nearby CFAR detection — using the wrong tap gives garbage phase.
+            if tap_idx is None:
+                continue
             angle_deg = estimate_angle_deg_from_pair(
                 paired.rx1[frame_idx, tap_idx],
                 paired.rx2[frame_idx, tap_idx],
@@ -108,7 +125,7 @@ def estimate_track_aoa_session(
                 )
             )
 
-        if not frame_track_aoas:
+        if include_detection_fallback and not frame_track_aoas:
             for detection_index, detection in enumerate(detections):
                 angle_deg = estimate_angle_deg_from_pair(
                     paired.rx1[frame_idx, detection.tap_idx],
@@ -130,6 +147,93 @@ def estimate_track_aoa_session(
         all_track_aoas.append(frame_track_aoas)
 
     return all_track_aoas
+
+
+def estimate_angle_deg_mvdr(
+    rx1_tap_frames: np.ndarray,
+    rx2_tap_frames: np.ndarray,
+    carrier_frequency_hz: float,
+    rx_spacing_m: float,
+    fov_limit_deg: float,
+    angle_resolution_deg: float = 0.5,
+) -> float:
+    """MVDR (Capon) beamformer AoA estimate from a window of frames at one tap.
+
+    Builds the 2×2 sample covariance R over the provided frame window, then
+    maximises P(θ) = 1 / (a†(θ) R⁻¹ a(θ)) over a uniform angular grid.
+    More robust than instantaneous PDoA when SNR is low or noise is correlated.
+    """
+    wavelength_m = SPEED_OF_LIGHT_M_S / float(carrier_frequency_hz)
+    W = len(rx1_tap_frames)
+    Y = np.stack([
+        rx1_tap_frames.astype(np.complex128),
+        rx2_tap_frames.astype(np.complex128),
+    ], axis=1)  # (W, 2)
+    R = (Y.conj().T @ Y) / W
+    R += 1e-6 * np.eye(2, dtype=np.complex128)   # diagonal loading for invertibility
+    R_inv = np.linalg.inv(R)
+
+    n_angles = max(3, int(2.0 * fov_limit_deg / angle_resolution_deg) + 1)
+    angles_deg = np.linspace(-fov_limit_deg, fov_limit_deg, n_angles)
+    # Vectorised: for a 2-element array a = [1, exp(j*φ)],
+    # a† R⁻¹ a = (R00 + R11) + 2·Re(R01 · exp(j·φ))
+    phases = (2.0 * np.pi * float(rx_spacing_m) / wavelength_m
+              * np.sin(np.radians(angles_deg)))
+    denom = (R_inv[0, 0] + R_inv[1, 1]).real + 2.0 * np.real(R_inv[0, 1] * np.exp(1j * phases))
+    power = 1.0 / np.maximum(denom, 1e-12)
+    return float(angles_deg[int(np.argmax(power))])
+
+
+def annotate_detections_aoa(
+    paired: PairedRxFrameSet,
+    detections_per_frame: list,
+    carrier_frequency_hz: float,
+    rx_spacing_m: float,
+    fov_limit_deg: float,
+    use_mvdr: bool = False,
+    mvdr_window: int = 15,
+) -> None:
+    """Set CfarDetection.azimuth_deg in-place for every detection (pre-tracking).
+
+    This must run AFTER CFAR and BEFORE the EKF tracker so that 2D Cartesian
+    tracks can be initialised with a proper (range, azimuth) measurement.
+
+    With use_mvdr=True, MVDR beamforming is used over a ±mvdr_window/2 frame
+    window; otherwise a single-frame PDoA estimate is used.
+    """
+    n_frames = paired.rx1.shape[0]
+    for frame_idx, dets in enumerate(detections_per_frame):
+        for det in dets:
+            tap = int(det.tap_idx)
+            if use_mvdr:
+                win_start = max(0, frame_idx - mvdr_window // 2)
+                win_end = min(n_frames, frame_idx + mvdr_window // 2 + 1)
+                if win_end - win_start < 2:
+                    det.azimuth_deg = estimate_angle_deg_from_pair(
+                        paired.rx1[frame_idx, tap],
+                        paired.rx2[frame_idx, tap],
+                        carrier_frequency_hz=carrier_frequency_hz,
+                        rx_spacing_m=rx_spacing_m,
+                        fov_limit_deg=fov_limit_deg,
+                        previous_angle_deg=None,
+                    )
+                else:
+                    det.azimuth_deg = estimate_angle_deg_mvdr(
+                        paired.rx1[win_start:win_end, tap],
+                        paired.rx2[win_start:win_end, tap],
+                        carrier_frequency_hz=carrier_frequency_hz,
+                        rx_spacing_m=rx_spacing_m,
+                        fov_limit_deg=fov_limit_deg,
+                    )
+            else:
+                det.azimuth_deg = estimate_angle_deg_from_pair(
+                    paired.rx1[frame_idx, tap],
+                    paired.rx2[frame_idx, tap],
+                    carrier_frequency_hz=carrier_frequency_hz,
+                    rx_spacing_m=rx_spacing_m,
+                    fov_limit_deg=fov_limit_deg,
+                    previous_angle_deg=None,
+                )
 
 
 def build_range_angle_map(

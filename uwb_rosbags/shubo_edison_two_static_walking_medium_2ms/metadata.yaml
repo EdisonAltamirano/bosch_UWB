@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 47961006109
+  starting_time:
+    nanoseconds_since_epoch: 1779748969267059811
+  message_count: 5993
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 5993
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - shubo_edison_two_static_walking_medium_2ms_0.mcap
+  files:
+    - path: shubo_edison_two_static_walking_medium_2ms_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1779748969267059811
+      duration:
+        nanoseconds: 47961006109
+      message_count: 5993

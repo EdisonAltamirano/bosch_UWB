@@ -14,6 +14,8 @@ class CfarDetection:
     range_m: float
     magnitude: float
     threshold: float
+    range_rate_m_s: float | None = None   # phase-Doppler / range-Doppler bin estimate
+    azimuth_deg: float | None = None      # MVDR or PDoA AoA estimate; None = not computed
 
 
 @dataclass(slots=True)
@@ -21,7 +23,7 @@ class CfarDetectionConfig:
     num_ref_cells: int = 8
     num_guard_cells: int = 2
     pfa: float = 1e-3
-    variant: str = "CA"      # "CA" | "OS" | "GO"
+    variant: str = "CA"      # "CA" | "OS" | "GO" | "SO"
     os_rank: int = 6
     cluster_min_gap_taps: int = 2
     max_peaks_per_frame: int = 4
@@ -30,13 +32,18 @@ class CfarDetectionConfig:
 @dataclass
 class Track:
     track_id: int
-    state: np.ndarray            # [range_m, range_rate_m_s]
-    covariance: np.ndarray       # (2, 2)
+    state: np.ndarray            # 1D: [range_m, range_rate_m_s] | 2D EKF: [x_m, y_m, vx_mps, vy_mps]
+    covariance: np.ndarray       # (2,2) or (4,4)
     hit_count: int = 0
     miss_count: int = 0
     confirmed: bool = False
     history_m: list[float] = field(default_factory=list)
     history_t: list[float] = field(default_factory=list)
+    trajectory_m: list[float] = field(default_factory=list)
+    trajectory_t: list[float] = field(default_factory=list)
+    trajectory_observed: list[bool] = field(default_factory=list)
+    trajectory_x: list[float] = field(default_factory=list)   # Cartesian lateral (2D EKF only)
+    trajectory_y: list[float] = field(default_factory=list)   # Cartesian depth  (2D EKF only)
 
 
 @dataclass(slots=True)
@@ -45,11 +52,22 @@ class TrackingConfig:
     sigma_process_m: float = 0.05
     sigma_process_v: float = 0.30
     sigma_meas_m: float = 0.15
+    sigma_meas_v: float = 0.15
+    filter_name: str = "kalman"         # "kalman" | "ekf"
     gate_distance_m: float = 0.75
+    gate_chi2: float = 9.21
     confirm_hits: int = 5
     max_misses: int = 5
     init_hits: int = 2
     init_window_frames: int = 3
+    use_hungarian: bool = True          # False = legacy greedy nearest-neighbour
+    vel_weight: float = 0.0             # >0 adds velocity consistency to gate (tune on two-person bags)
+    min_track_duration_s: float = 1.0   # tracks shorter than this skip breathing extraction
+    velocity_decay: float = 1.0         # per-frame velocity multiplier during miss periods (<1 prevents prediction drift)
+    use_dbscan_init: bool = False        # replace pool-based initiation with DBSCAN clustering on unassigned detections
+    use_2d_ekf: bool = False             # Cartesian EKF state [x,y,vx,vy]; requires azimuth_deg in detections
+    use_group_association: bool = False  # each track absorbs all gated unassigned dets and updates on avg (paper eq. 15)
+    sigma_meas_az_deg: float = 5.0       # azimuth measurement noise (degrees) for 2D EKF
 
 
 @dataclass(slots=True)
@@ -86,12 +104,15 @@ class DetectionConfig:
     rds_cutoff_hz: float = 0.2
     motion_threshold: float = 3.0
     doppler_window_s: float = 4.0
+    max_rd_fft_frames: int = 256
+    rd_hop_frames: int = 0  # 0 = auto (W//4); set explicitly to 1 for frame-exact (slow)
     microdoppler_window_s: float = 1.5
     stft_overlap: float = 0.75
     carrier_frequency_hz: float = 6.5e9
     zero_doppler_hz: float = 0.15
     doppler_limit_hz: float = 6.0
     microdoppler_limit_hz: float = 10.0
+    peak_centroid_half_width_m: float = 0.30
 
 
 @dataclass(slots=True)
@@ -131,6 +152,7 @@ class PreprocessedSession:
     presence_mask: np.ndarray
     peak_tap_per_frame: np.ndarray
     peak_range_m_per_frame: np.ndarray
+    peak_range_centroid_m_per_frame: np.ndarray
     smoothed_peak_range_m: np.ndarray
 
     @property
@@ -189,3 +211,36 @@ class DetectionResult:
             "artifact_dir": str(self.artifact_dir),
             "notes": self.notes,
         }
+
+
+# ---------------------------------------------------------------------------
+# Range-Doppler heatmap tracking types
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RangeDopplerFrame:
+    grid: np.ndarray              # (D, T) float32 — STFT magnitude
+    doppler_axis_mps: np.ndarray  # (D,) float64
+    range_axis_m: np.ndarray      # (T,) float64
+    timestamp_s: float
+    frame_idx: int
+
+
+@dataclass
+class DopplerCluster:
+    range_m: float
+    velocity_mps: float
+    magnitude: float
+    n_points: int
+
+
+@dataclass
+class DopplerTrack:
+    track_id: int
+    state: np.ndarray              # (2,) [range_m, velocity_mps]
+    covariance: np.ndarray         # (2, 2)
+    history_range_m: list[float]
+    history_velocity_mps: list[float]
+    history_t: list[float]
+    confirmed: bool
+    miss_count: int

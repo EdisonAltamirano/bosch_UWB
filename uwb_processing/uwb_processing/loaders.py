@@ -10,12 +10,158 @@ from .types import RadarSession
 
 
 def load_session(path: str | Path, topic: str = "/uwb/frame_raw") -> RadarSession:
-    source_path = Path(path)
+    source_path = _resolve_session_source(Path(path))
     if source_path.is_dir() and (source_path / "metadata.yaml").exists():
         return _load_rosbag_directory(source_path, topic=topic)
+    if source_path.is_dir() and _is_new_format_directory(source_path):
+        return _load_new_format_directory(source_path)
     if source_path.is_dir():
         return _load_npz_directory(source_path)
     raise FileNotFoundError(f"Unsupported input path: {source_path}")
+
+
+def _resolve_session_source(source_path: Path) -> Path:
+    if source_path.exists():
+        return source_path
+
+    search_roots = _candidate_workspace_roots()
+    rosbag_matches: list[Path] = []
+    npz_matches: list[Path] = []
+
+    for root in search_roots:
+        direct_candidate = root / source_path
+        if direct_candidate.exists():
+            if direct_candidate.is_dir() and (direct_candidate / "metadata.yaml").exists():
+                rosbag_matches.append(direct_candidate)
+            elif direct_candidate.is_dir():
+                npz_matches.append(direct_candidate)
+
+        rosbag_candidate = root / "uwb_rosbags" / source_path
+        if rosbag_candidate.is_dir() and (rosbag_candidate / "metadata.yaml").exists():
+            rosbag_matches.append(rosbag_candidate)
+
+        npz_candidate = root / "uwb_npz" / source_path
+        if npz_candidate.is_dir():
+            npz_matches.append(npz_candidate)
+
+    if rosbag_matches:
+        return rosbag_matches[0]
+    if npz_matches:
+        return npz_matches[0]
+    return source_path
+
+
+def _candidate_workspace_roots() -> list[Path]:
+    cwd = Path.cwd().resolve()
+    module_root = Path(__file__).resolve().parents[2]
+
+    candidates = [cwd, cwd / "src", module_root]
+    unique_candidates: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique_candidates.append(resolved)
+    return unique_candidates
+
+
+def _is_new_format_directory(source_dir: Path) -> bool:
+    raw_dir = source_dir / "raw"
+    if raw_dir.is_dir() and any(raw_dir.glob("frame_*.npy")):
+        return True
+    return any(source_dir.glob("frame_*.npy"))
+
+
+def _new_format_frame_files(source_dir: Path) -> list[Path]:
+    raw_dir = source_dir / "raw"
+    search_dir = raw_dir if raw_dir.is_dir() else source_dir
+    return sorted(search_dir.glob("frame_*.npy"))
+
+
+def _load_new_format_directory(source_dir: Path, logical_frame_interval_s: float = 0.096) -> RadarSession:
+    """Load flattened SR250 CIR sample-block dumps stored as frame_*.npy files.
+
+    Expected layout:
+    - either <session>/raw/frame_000001.npy, ... or <session>/frame_000001.npy, ...
+    - each file contains a flat int16 array representing many sample blocks
+    - one sample block = 128 complex int16 values = 8 metadata words + 120 CIR taps
+    """
+    try:
+        from sensors.sr250_protocol import parse_metadata_block
+    except ImportError:
+        from sensors.sensors.sr250_protocol import parse_metadata_block  # type: ignore
+
+    files = _new_format_frame_files(source_dir)
+    if not files:
+        raise FileNotFoundError(f"No frame_*.npy files found in {source_dir}")
+
+    sample_blocks_by_counter: dict[int, list[dict]] = {}
+    sample_order = 0
+    taps_per_sample = 128
+    metadata_taps = 8
+    cir_taps = taps_per_sample - metadata_taps
+
+    for file_path in files:
+        flat = np.load(file_path)
+        flat = np.asarray(flat, dtype=np.int16).reshape(-1)
+        ints_per_sample_block = taps_per_sample * 2
+        if flat.size % ints_per_sample_block != 0:
+            raise ValueError(
+                f"{file_path} has {flat.size} int16 values; expected a multiple of {ints_per_sample_block}"
+            )
+        sample_blocks = flat.reshape(-1, taps_per_sample, 2)
+        for block in sample_blocks:
+            metadata_bytes = np.asarray(block[:metadata_taps, :], dtype="<i2").tobytes(order="C")
+            metadata = parse_metadata_block(
+                metadata_bytes,
+                session_handle=0,
+                status=0,
+                radar_data_type=0,
+                num_samples=0,
+                taps_per_sample=taps_per_sample,
+                rfu=0,
+                sample_index=sample_order,
+            )
+            cir_pairs = np.asarray(block[metadata_taps:, :], dtype=np.float32)
+            taps = cir_pairs[:, 0] + 1j * cir_pairs[:, 1]
+            counter = int(metadata.cir_counter)
+            sample_blocks_by_counter.setdefault(counter, []).append(
+                {
+                    "order": sample_order,
+                    "rx_path": int(metadata.rx_path),
+                    "rx_antenna_id": int(metadata.rx_antenna_id),
+                    "tx_antenna_id": int(metadata.tx_antenna_id),
+                    "rx_timestamp": int(metadata.rx_timestamp),
+                    "cir_start_offset": int(metadata.cir_start_offset),
+                    "taps": np.asarray(taps[:cir_taps], dtype=np.complex64),
+                }
+            )
+            sample_order += 1
+
+    frame_records: list[dict] = []
+    for counter in sorted(sample_blocks_by_counter):
+        samples = sample_blocks_by_counter[counter]
+        samples.sort(key=lambda entry: (entry["rx_path"], entry["rx_antenna_id"], entry["order"]))
+        frame_records.append(
+            {
+                "taps": np.stack([entry["taps"] for entry in samples], axis=0),
+                "timestamp_s": float(counter) * logical_frame_interval_s,
+                "cir_counter": int(counter),
+                "cir_counters": np.asarray([counter] * len(samples), dtype=np.uint32),
+                "rx_paths": np.asarray([entry["rx_path"] for entry in samples], dtype=np.uint8),
+                "rx_timestamps": np.asarray([entry["rx_timestamp"] for entry in samples], dtype=np.uint32),
+                "rx_antenna_ids": np.asarray([entry["rx_antenna_id"] for entry in samples], dtype=np.uint8),
+                "tx_antenna_ids": np.asarray([entry["tx_antenna_id"] for entry in samples], dtype=np.uint8),
+                "cir_start_offsets": np.asarray([entry["cir_start_offset"] for entry in samples], dtype=np.uint16),
+                "bytes_per_tap": 4,
+                "block_size": 512,
+            }
+        )
+
+    if not frame_records:
+        raise RuntimeError(f"No decodable CIR sample blocks found in {source_dir}")
+    return _stack_frame_records(source_dir, "new_format", frame_records)
 
 
 def _load_npz_directory(npz_dir: Path) -> RadarSession:

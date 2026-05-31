@@ -51,6 +51,45 @@ def adaptive_exponential_moving_average(values: np.ndarray, window: int = 20) ->
     return averaged
 
 
+def compute_power_weighted_range_centroid_per_frame(
+    clutter_hp: np.ndarray,
+    roi_mask: np.ndarray,
+    range_axis_m: np.ndarray,
+    peak_tap_per_frame: np.ndarray,
+    half_width_taps: int,
+) -> np.ndarray:
+    """Estimate a sub-tap range trace by centroiding local ROI power around each peak."""
+    centroid_ranges = range_axis_m[peak_tap_per_frame].astype(np.float32).copy()
+    roi_indices = np.flatnonzero(roi_mask)
+    if roi_indices.size == 0:
+        return centroid_ranges
+
+    roi_power = (np.abs(clutter_hp[:, roi_mask]) ** 2).astype(np.float32)
+    local_background = np.median(roi_power, axis=1).astype(np.float32)
+    peak_local_indices = np.searchsorted(roi_indices, peak_tap_per_frame)
+
+    for frame_idx, peak_local_idx in enumerate(peak_local_indices):
+        lo = max(0, int(peak_local_idx) - half_width_taps)
+        hi = min(roi_indices.size - 1, int(peak_local_idx) + half_width_taps)
+        support_idx = roi_indices[lo : hi + 1]
+        support_power = roi_power[frame_idx, lo : hi + 1]
+        if support_idx.size == 0 or support_power.size == 0:
+            continue
+
+        weights = np.maximum(support_power - local_background[frame_idx], 0.0)
+        if not np.any(weights > 0.0):
+            weights = support_power
+        normalizer = float(np.sum(weights))
+        if normalizer <= 0.0:
+            continue
+
+        centroid_ranges[frame_idx] = np.float32(
+            np.sum(range_axis_m[support_idx].astype(np.float32) * weights) / normalizer
+        )
+
+    return centroid_ranges
+
+
 def preprocess_session(
     session: RadarSession,
     config: DetectionConfig,
@@ -110,10 +149,18 @@ def preprocess_session(
 
     presence_mask = roi_to_background_power_ratio >= np.float32(config.motion_threshold)
     peak_range_m_per_frame = range_axis_m[peak_tap_per_frame].astype(np.float32)
+    centroid_half_width_taps = max(1, int(round(config.peak_centroid_half_width_m / config.tap_spacing_m)))
+    peak_range_centroid_m_per_frame = compute_power_weighted_range_centroid_per_frame(
+        clutter_hp,
+        roi_mask,
+        range_axis_m,
+        peak_tap_per_frame,
+        half_width_taps=centroid_half_width_taps,
+    )
     smoothed_peak_range_m = np.full(peak_range_m_per_frame.shape, np.nan, dtype=np.float32)
     if np.any(presence_mask):
         smoothed_peak_range_m[presence_mask] = adaptive_exponential_moving_average(
-            peak_range_m_per_frame[presence_mask]
+            peak_range_centroid_m_per_frame[presence_mask]
         )
 
     return PreprocessedSession(
@@ -134,5 +181,6 @@ def preprocess_session(
         presence_mask=presence_mask.astype(bool),
         peak_tap_per_frame=peak_tap_per_frame,
         peak_range_m_per_frame=peak_range_m_per_frame,
+        peak_range_centroid_m_per_frame=peak_range_centroid_m_per_frame,
         smoothed_peak_range_m=smoothed_peak_range_m,
     )

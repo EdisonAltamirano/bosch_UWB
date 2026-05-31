@@ -1,0 +1,507 @@
+{
+  "session_id": "single_person_walking_preset_2ms",
+  "frame_count": 23075,
+  "frame_rate_hz": 578.5246896551724,
+  "duration_s": 49.87385296821594,
+  "selected_path": 0,
+  "dominant_tap": 7,
+  "dominant_range_m": 1.0500000715255737,
+  "cfar_variant": "OS",
+  "cfar_mode": "range_doppler",
+  "tracker_filter": "ekf",
+  "detections": [],
+  "confirmed_tracks": [
+    {
+      "track_id": 0,
+      "history_length": 64,
+      "mean_range_m": 1.8093106701032364
+    },
+    {
+      "track_id": 1,
+      "history_length": 606,
+      "mean_range_m": 1.6261885162553047
+    },
+    {
+      "track_id": 2,
+      "history_length": 134,
+      "mean_range_m": 11.350755353055487
+    },
+    {
+      "track_id": 5,
+      "history_length": 102,
+      "mean_range_m": 11.445634549274041
+    },
+    {
+      "track_id": 6,
+      "history_length": 385,
+      "mean_range_m": 1.56909122761858
+    },
+    {
+      "track_id": 7,
+      "history_length": 186,
+      "mean_range_m": 1.9989103386735327
+    },
+    {
+      "track_id": 8,
+      "history_length": 257,
+      "mean_range_m": 2.4967558123483387
+    },
+    {
+      "track_id": 9,
+      "history_length": 385,
+      "mean_range_m": 3.4238494938434405
+    },
+    {
+      "track_id": 10,
+      "history_length": 189,
+      "mean_range_m": 3.145815722297513
+    },
+    {
+      "track_id": 12,
+      "history_length": 256,
+      "mean_range_m": 3.750001207068148
+    },
+    {
+      "track_id": 13,
+      "history_length": 322,
+      "mean_range_m": 4.378635075565452
+    },
+    {
+      "track_id": 14,
+      "history_length": 410,
+      "mean_range_m": 4.598077352909069
+    },
+    {
+      "track_id": 15,
+      "history_length": 193,
+      "mean_range_m": 4.474827656050417
+    },
+    {
+      "track_id": 16,
+      "history_length": 344,
+      "mean_range_m": 5.1636015406484335
+    },
+    {
+      "track_id": 19,
+      "history_length": 225,
+      "mean_range_m": 5.149396041717137
+    },
+    {
+      "track_id": 25,
+      "history_length": 194,
+      "mean_range_m": 5.892882387986039
+    },
+    {
+      "track_id": 26,
+      "history_length": 121,
+      "mean_range_m": 6.102696957009584
+    },
+    {
+      "track_id": 27,
+      "history_length": 255,
+      "mean_range_m": 6.594535367156623
+    },
+    {
+      "track_id": 29,
+      "history_length": 133,
+      "mean_range_m": 6.748003827934864
+    },
+    {
+      "track_id": 30,
+      "history_length": 195,
+      "mean_range_m": 7.2535317528857135
+    },
+    {
+      "track_id": 31,
+      "history_length": 255,
+      "mean_range_m": 7.183152661181412
+    },
+    {
+      "track_id": 33,
+      "history_length": 122,
+      "mean_range_m": 7.365590303007021
+    },
+    {
+      "track_id": 34,
+      "history_length": 318,
+      "mean_range_m": 8.14261903525139
+    },
+    {
+      "track_id": 38,
+      "history_length": 195,
+      "mean_range_m": 8.581779840167362
+    },
+    {
+      "track_id": 39,
+      "history_length": 320,
+      "mean_range_m": 9.290817955598857
+    },
+    {
+      "track_id": 40,
+      "history_length": 321,
+      "mean_range_m": 10.028817710168815
+    },
+    {
+      "track_id": 43,
+      "history_length": 796,
+      "mean_range_m": 11.996573291373846
+    },
+    {
+      "track_id": 44,
+      "history_length": 147,
+      "mean_range_m": 11.661906108744272
+    },
+    {
+      "track_id": 46,
+      "history_length": 65,
+      "mean_range_m": 12.032366659527645
+    },
+    {
+      "track_id": 47,
+      "history_length": 64,
+      "mean_range_m": 11.654626675651247
+    },
+    {
+      "track_id": 51,
+      "history_length": 166,
+      "mean_range_m": 13.51634179512877
+    },
+    {
+      "track_id": 54,
+      "history_length": 128,
+      "mean_range_m": 15.26546995445386
+    },
+    {
+      "track_id": 55,
+      "history_length": 450,
+      "mean_range_m": 15.722053803657776
+    },
+    {
+      "track_id": 57,
+      "history_length": 159,
+      "mean_range_m": 16.27022128071866
+    },
+    {
+      "track_id": 58,
+      "history_length": 320,
+      "mean_range_m": 15.371456457387941
+    },
+    {
+      "track_id": 59,
+      "history_length": 196,
+      "mean_range_m": 15.4012242750401
+    },
+    {
+      "track_id": 60,
+      "history_length": 175,
+      "mean_range_m": 14.981954087166804
+    },
+    {
+      "track_id": 61,
+      "history_length": 124,
+      "mean_range_m": 14.720293576833779
+    },
+    {
+      "track_id": 63,
+      "history_length": 159,
+      "mean_range_m": 14.43035345182417
+    },
+    {
+      "track_id": 64,
+      "history_length": 3,
+      "mean_range_m": 14.550000190734863
+    },
+    {
+      "track_id": 65,
+      "history_length": 539,
+      "mean_range_m": 12.567400196840907
+    },
+    {
+      "track_id": 67,
+      "history_length": 192,
+      "mean_range_m": 13.335587561389707
+    },
+    {
+      "track_id": 68,
+      "history_length": 48,
+      "mean_range_m": 13.861197187744978
+    },
+    {
+      "track_id": 72,
+      "history_length": 92,
+      "mean_range_m": 11.861540082495782
+    },
+    {
+      "track_id": 73,
+      "history_length": 186,
+      "mean_range_m": 11.578571411878894
+    },
+    {
+      "track_id": 75,
+      "history_length": 255,
+      "mean_range_m": 9.965774510784447
+    },
+    {
+      "track_id": 78,
+      "history_length": 256,
+      "mean_range_m": 9.46253036963609
+    },
+    {
+      "track_id": 79,
+      "history_length": 181,
+      "mean_range_m": 11.532510159828288
+    },
+    {
+      "track_id": 80,
+      "history_length": 402,
+      "mean_range_m": 8.970157619654097
+    },
+    {
+      "track_id": 83,
+      "history_length": 576,
+      "mean_range_m": 7.960698528598119
+    },
+    {
+      "track_id": 84,
+      "history_length": 163,
+      "mean_range_m": 8.635257416483283
+    },
+    {
+      "track_id": 88,
+      "history_length": 121,
+      "mean_range_m": 7.096203761196391
+    },
+    {
+      "track_id": 89,
+      "history_length": 256,
+      "mean_range_m": 6.269570720124511
+    },
+    {
+      "track_id": 92,
+      "history_length": 129,
+      "mean_range_m": 5.733578250662679
+    },
+    {
+      "track_id": 91,
+      "history_length": 129,
+      "mean_range_m": 5.774903939090997
+    },
+    {
+      "track_id": 94,
+      "history_length": 398,
+      "mean_range_m": 4.7853312652975575
+    },
+    {
+      "track_id": 96,
+      "history_length": 129,
+      "mean_range_m": 5.251051781620294
+    },
+    {
+      "track_id": 98,
+      "history_length": 49,
+      "mean_range_m": 5.055975923518999
+    },
+    {
+      "track_id": 99,
+      "history_length": 214,
+      "mean_range_m": 4.5011171111018635
+    },
+    {
+      "track_id": 100,
+      "history_length": 126,
+      "mean_range_m": 4.860460095521939
+    },
+    {
+      "track_id": 101,
+      "history_length": 311,
+      "mean_range_m": 4.101789877982801
+    },
+    {
+      "track_id": 105,
+      "history_length": 887,
+      "mean_range_m": 2.952595583751438
+    },
+    {
+      "track_id": 106,
+      "history_length": 182,
+      "mean_range_m": 3.841245837693074
+    },
+    {
+      "track_id": 109,
+      "history_length": 2,
+      "mean_range_m": 3.3000001907348633
+    },
+    {
+      "track_id": 110,
+      "history_length": 385,
+      "mean_range_m": 2.33624251537559
+    },
+    {
+      "track_id": 114,
+      "history_length": 63,
+      "mean_range_m": 3.0641824773891453
+    },
+    {
+      "track_id": 115,
+      "history_length": 576,
+      "mean_range_m": 1.8031041932592358
+    },
+    {
+      "track_id": 118,
+      "history_length": 111,
+      "mean_range_m": 1.6667079841038026
+    },
+    {
+      "track_id": 119,
+      "history_length": 88,
+      "mean_range_m": 1.7759977658426827
+    },
+    {
+      "track_id": 120,
+      "history_length": 42,
+      "mean_range_m": 2.092214164934792
+    },
+    {
+      "track_id": 122,
+      "history_length": 256,
+      "mean_range_m": 1.8925560908630075
+    }
+  ],
+  "breathing": [
+    {
+      "track_id": 1,
+      "tap_idx": 11,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 83.24822533711902,
+      "phase_arc_deg": 8033.582444592098
+    },
+    {
+      "track_id": 13,
+      "tap_idx": 29,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 71.02778758402457,
+      "phase_arc_deg": 6344.605105111449
+    },
+    {
+      "track_id": 14,
+      "tap_idx": 31,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 74.04201943620875,
+      "phase_arc_deg": 7568.964327552798
+    },
+    {
+      "track_id": 16,
+      "tap_idx": 34,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 75.2741802033152,
+      "phase_arc_deg": 7430.914470845356
+    },
+    {
+      "track_id": 43,
+      "tap_idx": 80,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 76.81316669365799,
+      "phase_arc_deg": 10657.593307607316
+    },
+    {
+      "track_id": 65,
+      "tap_idx": 84,
+      "is_static": false,
+      "freq_hz": 0.502191570881226,
+      "freq_bpm": 30.131494252873562,
+      "snr_db": 69.34924106151455,
+      "phase_arc_deg": 13025.440588090602
+    },
+    {
+      "track_id": 79,
+      "tap_idx": 77,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 67.14602385894892,
+      "phase_arc_deg": 6240.989393357637
+    },
+    {
+      "track_id": 83,
+      "tap_idx": 53,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 78.40448668776615,
+      "phase_arc_deg": 10530.269485781215
+    },
+    {
+      "track_id": 89,
+      "tap_idx": 42,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 69.30640920117973,
+      "phase_arc_deg": 4937.0971954846955
+    },
+    {
+      "track_id": 105,
+      "tap_idx": 20,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 85.31859005974731,
+      "phase_arc_deg": 12255.598791475419
+    },
+    {
+      "track_id": 110,
+      "tap_idx": 16,
+      "is_static": false,
+      "freq_hz": 0.5317322515212982,
+      "freq_bpm": 31.903935091277894,
+      "snr_db": 95.62105133331892,
+      "phase_arc_deg": 10824.74555157678
+    },
+    {
+      "track_id": 115,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.5649655172413793,
+      "freq_bpm": 33.89793103448276,
+      "snr_db": 86.59140325950573,
+      "phase_arc_deg": 6693.716634739048
+    },
+    {
+      "track_id": 122,
+      "tap_idx": 13,
+      "is_static": false,
+      "freq_hz": 0.502191570881226,
+      "freq_bpm": 30.131494252873562,
+      "snr_db": 58.56295908211479,
+      "phase_arc_deg": 1517.5698594844114
+    }
+  ],
+  "occupancy": {
+    "person_count_estimate": 2,
+    "person_count_peak": 10,
+    "confirmed_track_count": 71
+  },
+  "timings_s": {
+    "load_preprocess": 8.553,
+    "session_plots": 4.767,
+    "cfar": 4.644,
+    "pre_aoa": 0.479,
+    "tracking": 30.244,
+    "doppler_animation": 135.745,
+    "aoa": 65.734,
+    "breathing": 0.012,
+    "annotations": 0.0,
+    "artifacts": 0.292,
+    "total": 250.468
+  }
+}

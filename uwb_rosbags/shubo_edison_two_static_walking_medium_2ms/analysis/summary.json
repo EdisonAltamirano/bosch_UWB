@@ -1,0 +1,545 @@
+{
+  "session_id": "shubo_edison_two_static_walking_medium_2ms",
+  "frame_count": 23099,
+  "frame_rate_hz": 589.6673696049487,
+  "duration_s": 48.004913091659546,
+  "selected_path": 0,
+  "dominant_tap": 8,
+  "dominant_range_m": 1.2000000476837158,
+  "cfar_variant": "OS",
+  "cfar_mode": "range_doppler",
+  "tracker_filter": "ekf",
+  "detections": [],
+  "confirmed_tracks": [
+    {
+      "track_id": 1,
+      "history_length": 385,
+      "mean_range_m": 1.6380875976861693
+    },
+    {
+      "track_id": 0,
+      "history_length": 193,
+      "mean_range_m": 1.4284584565864407
+    },
+    {
+      "track_id": 5,
+      "history_length": 127,
+      "mean_range_m": 1.6503160179596745
+    },
+    {
+      "track_id": 7,
+      "history_length": 127,
+      "mean_range_m": 3.6773675425074943
+    },
+    {
+      "track_id": 8,
+      "history_length": 179,
+      "mean_range_m": 4.418006423933599
+    },
+    {
+      "track_id": 13,
+      "history_length": 330,
+      "mean_range_m": 6.78002975406161
+    },
+    {
+      "track_id": 14,
+      "history_length": 128,
+      "mean_range_m": 7.100438246176182
+    },
+    {
+      "track_id": 17,
+      "history_length": 1180,
+      "mean_range_m": 2.258014925483442
+    },
+    {
+      "track_id": 18,
+      "history_length": 192,
+      "mean_range_m": 6.544623846176793
+    },
+    {
+      "track_id": 19,
+      "history_length": 317,
+      "mean_range_m": 1.7838445156232112
+    },
+    {
+      "track_id": 20,
+      "history_length": 368,
+      "mean_range_m": 2.055592808385778
+    },
+    {
+      "track_id": 24,
+      "history_length": 598,
+      "mean_range_m": 3.3405148826713016
+    },
+    {
+      "track_id": 27,
+      "history_length": 554,
+      "mean_range_m": 4.740692208321584
+    },
+    {
+      "track_id": 33,
+      "history_length": 203,
+      "mean_range_m": 4.497986438782095
+    },
+    {
+      "track_id": 40,
+      "history_length": 187,
+      "mean_range_m": 5.1426077972817374
+    },
+    {
+      "track_id": 43,
+      "history_length": 256,
+      "mean_range_m": 5.836437355622698
+    },
+    {
+      "track_id": 44,
+      "history_length": 128,
+      "mean_range_m": 2.467112974750889
+    },
+    {
+      "track_id": 45,
+      "history_length": 768,
+      "mean_range_m": 1.7810145433006508
+    },
+    {
+      "track_id": 46,
+      "history_length": 208,
+      "mean_range_m": 3.434351672065291
+    },
+    {
+      "track_id": 49,
+      "history_length": 129,
+      "mean_range_m": 6.037131072073116
+    },
+    {
+      "track_id": 52,
+      "history_length": 262,
+      "mean_range_m": 5.032092937924148
+    },
+    {
+      "track_id": 53,
+      "history_length": 169,
+      "mean_range_m": 4.912642806134366
+    },
+    {
+      "track_id": 55,
+      "history_length": 192,
+      "mean_range_m": 4.31184327999707
+    },
+    {
+      "track_id": 56,
+      "history_length": 448,
+      "mean_range_m": 3.485135538705408
+    },
+    {
+      "track_id": 58,
+      "history_length": 245,
+      "mean_range_m": 3.7115632549368707
+    },
+    {
+      "track_id": 59,
+      "history_length": 245,
+      "mean_range_m": 3.624802165590032
+    },
+    {
+      "track_id": 61,
+      "history_length": 257,
+      "mean_range_m": 3.0175242985456827
+    },
+    {
+      "track_id": 63,
+      "history_length": 553,
+      "mean_range_m": 2.114611793347806
+    },
+    {
+      "track_id": 65,
+      "history_length": 1047,
+      "mean_range_m": 1.7439282511718697
+    },
+    {
+      "track_id": 66,
+      "history_length": 505,
+      "mean_range_m": 2.0297589090298493
+    },
+    {
+      "track_id": 67,
+      "history_length": 479,
+      "mean_range_m": 1.8209434482409457
+    },
+    {
+      "track_id": 70,
+      "history_length": 892,
+      "mean_range_m": 3.2077306525459055
+    },
+    {
+      "track_id": 77,
+      "history_length": 625,
+      "mean_range_m": 3.7612073953942904
+    },
+    {
+      "track_id": 78,
+      "history_length": 398,
+      "mean_range_m": 3.69621997752466
+    },
+    {
+      "track_id": 92,
+      "history_length": 321,
+      "mean_range_m": 6.973476014334611
+    },
+    {
+      "track_id": 93,
+      "history_length": 306,
+      "mean_range_m": 2.248860116773893
+    },
+    {
+      "track_id": 95,
+      "history_length": 574,
+      "mean_range_m": 2.1623313658971974
+    },
+    {
+      "track_id": 97,
+      "history_length": 384,
+      "mean_range_m": 7.2982123168774615
+    },
+    {
+      "track_id": 102,
+      "history_length": 384,
+      "mean_range_m": 2.7412418150296305
+    },
+    {
+      "track_id": 113,
+      "history_length": 342,
+      "mean_range_m": 5.027921564180877
+    },
+    {
+      "track_id": 118,
+      "history_length": 138,
+      "mean_range_m": 4.418309412621315
+    },
+    {
+      "track_id": 119,
+      "history_length": 123,
+      "mean_range_m": 4.1753675089120215
+    },
+    {
+      "track_id": 122,
+      "history_length": 192,
+      "mean_range_m": 3.0477809257379875
+    },
+    {
+      "track_id": 126,
+      "history_length": 852,
+      "mean_range_m": 2.029550191181525
+    },
+    {
+      "track_id": 127,
+      "history_length": 315,
+      "mean_range_m": 2.061774333129716
+    },
+    {
+      "track_id": 128,
+      "history_length": 1135,
+      "mean_range_m": 1.8323566685098784
+    },
+    {
+      "track_id": 137,
+      "history_length": 505,
+      "mean_range_m": 2.9967282443982004
+    },
+    {
+      "track_id": 139,
+      "history_length": 586,
+      "mean_range_m": 2.475595765409434
+    },
+    {
+      "track_id": 146,
+      "history_length": 256,
+      "mean_range_m": 5.14560645890014
+    },
+    {
+      "track_id": 148,
+      "history_length": 257,
+      "mean_range_m": 5.767411979965038
+    },
+    {
+      "track_id": 154,
+      "history_length": 128,
+      "mean_range_m": 6.6074999467181765
+    },
+    {
+      "track_id": 156,
+      "history_length": 642,
+      "mean_range_m": 1.9766149470674863
+    },
+    {
+      "track_id": 158,
+      "history_length": 128,
+      "mean_range_m": 6.940028364368844
+    },
+    {
+      "track_id": 159,
+      "history_length": 382,
+      "mean_range_m": 6.7780467188239575
+    },
+    {
+      "track_id": 170,
+      "history_length": 316,
+      "mean_range_m": 4.968491196881218
+    },
+    {
+      "track_id": 180,
+      "history_length": 127,
+      "mean_range_m": 4.032802963285017
+    },
+    {
+      "track_id": 184,
+      "history_length": 128,
+      "mean_range_m": 5.639061139128743
+    },
+    {
+      "track_id": 186,
+      "history_length": 522,
+      "mean_range_m": 2.6239901513835378
+    },
+    {
+      "track_id": 187,
+      "history_length": 241,
+      "mean_range_m": 2.7083791352189177
+    },
+    {
+      "track_id": 188,
+      "history_length": 155,
+      "mean_range_m": 2.1114115947959924
+    },
+    {
+      "track_id": 189,
+      "history_length": 194,
+      "mean_range_m": 1.9159603002470702
+    },
+    {
+      "track_id": 190,
+      "history_length": 320,
+      "mean_range_m": 1.792223626475625
+    }
+  ],
+  "breathing": [
+    {
+      "track_id": 13,
+      "tap_idx": 45,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 76.54743681916554,
+      "phase_arc_deg": 3955.234055769807
+    },
+    {
+      "track_id": 17,
+      "tap_idx": 15,
+      "is_static": false,
+      "freq_hz": 0.3545804988604622,
+      "freq_bpm": 21.274829931627732,
+      "snr_db": 76.8457480353212,
+      "phase_arc_deg": 10043.713459690522
+    },
+    {
+      "track_id": 24,
+      "tap_idx": 22,
+      "is_static": false,
+      "freq_hz": 0.5434722300506439,
+      "freq_bpm": 32.60833380303863,
+      "snr_db": 67.0970146260078,
+      "phase_arc_deg": 9380.845918754978
+    },
+    {
+      "track_id": 27,
+      "tap_idx": 32,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 71.66193279643369,
+      "phase_arc_deg": 5008.082592860677
+    },
+    {
+      "track_id": 45,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 84.81135833889275,
+      "phase_arc_deg": 3727.86657686894
+    },
+    {
+      "track_id": 56,
+      "tap_idx": 23,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 82.49642359094554,
+      "phase_arc_deg": 9493.156620910671
+    },
+    {
+      "track_id": 63,
+      "tap_idx": 14,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 90.92018263310192,
+      "phase_arc_deg": 6915.6668873492
+    },
+    {
+      "track_id": 65,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.4005892456555358,
+      "freq_bpm": 24.035354739332146,
+      "snr_db": 87.58534260986231,
+      "phase_arc_deg": 10046.965115776014
+    },
+    {
+      "track_id": 66,
+      "tap_idx": 14,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 88.067197225393,
+      "phase_arc_deg": 6010.71163663763
+    },
+    {
+      "track_id": 67,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.4849238236882802,
+      "freq_bpm": 29.09542942129681,
+      "snr_db": 83.17907244275298,
+      "phase_arc_deg": 9283.809045068723
+    },
+    {
+      "track_id": 70,
+      "tap_idx": 21,
+      "is_static": false,
+      "freq_hz": 0.5419736852986661,
+      "freq_bpm": 32.518421117919964,
+      "snr_db": 73.91211034895532,
+      "phase_arc_deg": 9198.303584843381
+    },
+    {
+      "track_id": 77,
+      "tap_idx": 25,
+      "is_static": false,
+      "freq_hz": 0.5145439525348592,
+      "freq_bpm": 30.87263715209155,
+      "snr_db": 73.00181804649003,
+      "phase_arc_deg": 11220.720190530574
+    },
+    {
+      "track_id": 78,
+      "tap_idx": 25,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 70.45152715979353,
+      "phase_arc_deg": 6636.761235834036
+    },
+    {
+      "track_id": 95,
+      "tap_idx": 14,
+      "is_static": false,
+      "freq_hz": 0.5419736852986661,
+      "freq_bpm": 32.518421117919964,
+      "snr_db": 79.57394723660099,
+      "phase_arc_deg": 8199.568082748181
+    },
+    {
+      "track_id": 97,
+      "tap_idx": 49,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 72.21613615954769,
+      "phase_arc_deg": 3443.3921978924495
+    },
+    {
+      "track_id": 126,
+      "tap_idx": 14,
+      "is_static": false,
+      "freq_hz": 0.3690033602033471,
+      "freq_bpm": 22.140201612200826,
+      "snr_db": 91.44149834943946,
+      "phase_arc_deg": 12713.598310309228
+    },
+    {
+      "track_id": 128,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.36854210600309295,
+      "freq_bpm": 22.112526360185576,
+      "snr_db": 81.13735071649715,
+      "phase_arc_deg": 10305.871622932324
+    },
+    {
+      "track_id": 137,
+      "tap_idx": 20,
+      "is_static": false,
+      "freq_hz": 0.5118640361154069,
+      "freq_bpm": 30.711842166924413,
+      "snr_db": 65.41056524259956,
+      "phase_arc_deg": 9647.367156842982
+    },
+    {
+      "track_id": 139,
+      "tap_idx": 17,
+      "is_static": false,
+      "freq_hz": 0.36854210600309295,
+      "freq_bpm": 22.112526360185576,
+      "snr_db": 82.05544494747407,
+      "phase_arc_deg": 10125.075530186463
+    },
+    {
+      "track_id": 156,
+      "tap_idx": 13,
+      "is_static": false,
+      "freq_hz": 0.5419736852986661,
+      "freq_bpm": 32.518421117919964,
+      "snr_db": 72.53012722663027,
+      "phase_arc_deg": 5129.372122448301
+    },
+    {
+      "track_id": 159,
+      "tap_idx": 45,
+      "is_static": false,
+      "freq_hz": 0.4387406023846344,
+      "freq_bpm": 26.324436143078064,
+      "snr_db": 72.08941738079483,
+      "phase_arc_deg": 9148.661002965511
+    },
+    {
+      "track_id": 186,
+      "tap_idx": 17,
+      "is_static": false,
+      "freq_hz": 0.5758470406298327,
+      "freq_bpm": 34.55082243778996,
+      "snr_db": 87.11888587448782,
+      "phase_arc_deg": 8222.532076033154
+    }
+  ],
+  "occupancy": {
+    "person_count_estimate": 3,
+    "person_count_peak": 2,
+    "confirmed_track_count": 62,
+    "persistent_track_count": 13,
+    "occ_min_duration_s": 2.0
+  },
+  "timings_s": {
+    "load_preprocess": 10.997,
+    "session_plots": 7.549,
+    "cfar": 4.98,
+    "pre_aoa": 0.724,
+    "tracking": 68.666,
+    "doppler_animation": 224.189,
+    "aoa": 112.577,
+    "breathing": 0.034,
+    "annotations": 0.0,
+    "artifacts": 0.63,
+    "total": 430.346
+  }
+}
