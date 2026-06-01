@@ -781,6 +781,9 @@ def save_fov_animation(
     range_max_m: float = 7.5,
     fps: int = 15,
     trail_s: float = 1.5,
+    snr_db_per_frame: np.ndarray | None = None,
+    occupancy_per_frame: list[int] | None = None,
+    presence_per_frame: np.ndarray | None = None,
 ) -> None:
     """Animate the polar FOV sector frame-by-frame with a fading trail, saved as MP4."""
     import imageio.v2 as imageio
@@ -815,6 +818,28 @@ def save_fov_animation(
     )
     title = ax.title
     fig.tight_layout()
+
+    # HUD overlays — placed at the bottom corners of the axes bounding box.
+    # transAxes maps (0,0)→bottom-left of the polar bounding box; those corners
+    # fall outside the sector arc and are empty on the white figure background.
+    _hud_dark = dict(boxstyle="round,pad=0.3", facecolor="#0d1117", alpha=0.72, edgecolor="none")
+    _hud_small = dict(boxstyle="round,pad=0.25", facecolor="#0d1117", alpha=0.62, edgecolor="none")
+    hud_count = ax.text(
+        0.02, 0.11, "PEOPLE: 0",
+        transform=ax.transAxes, color="white", fontsize=11, fontweight="bold",
+        va="bottom", ha="left", zorder=15, bbox=_hud_dark,
+    )
+    hud_presence = ax.text(
+        0.02, 0.04, "●  PRESENCE: ---",
+        transform=ax.transAxes, color="#aaaaaa", fontsize=9,
+        va="bottom", ha="left", zorder=15, bbox=_hud_small,
+    )
+    hud_snr = ax.text(
+        0.62, 0.04, "SNR: --- dB",
+        transform=ax.transAxes, color="white", fontsize=9,
+        va="bottom", ha="left", zorder=15, bbox=_hud_small,
+    )
+
     fig.canvas.draw()
 
     # Pre-compute RGBA base colors per track id (keyed on actual observed IDs)
@@ -888,6 +913,20 @@ def save_fov_animation(
                     )
                     dynamic.append(sc_now)
 
+                # HUD update
+                n_aoa = len(track_aoas_per_frame[fi])
+                count_now = (
+                    int(occupancy_per_frame[fi])
+                    if occupancy_per_frame is not None and fi < len(occupancy_per_frame)
+                    else n_aoa
+                )
+                hud_count.set_text(f"PEOPLE: {count_now}")
+                presence_now = count_now > 0
+                hud_presence.set_text("●  DETECTED" if presence_now else "●  NONE")
+                hud_presence.set_color("#44ff88" if presence_now else "#ff4444")
+                if snr_db_per_frame is not None and fi < len(snr_db_per_frame):
+                    hud_snr.set_text(f"SNR: {float(snr_db_per_frame[fi]):.1f} dB")
+
                 fig.canvas.draw()
                 rgb = np.asarray(fig.canvas.buffer_rgba(), dtype=np.uint8)[..., :3].copy()
                 writer.append_data(rgb)
@@ -910,6 +949,7 @@ def save_doppler_animation(
     vel_limit_ms: float = 6.0,
     range_max_m: float | None = None,
     tracks: list[Track] | None = None,
+    occupancy_per_frame: list[int] | None = None,
 ) -> None:
     """Range-Doppler heatmap animation with DBSCAN+Kalman tracking overlay.
 
@@ -1006,12 +1046,15 @@ def save_doppler_animation(
     n_rd = len(rd_snaps)
     print(f"[doppler anim] {len(rd_frames)} RD frames → {n_rd} tracking steps")
 
-    # Full confirmed track histories for the history panel
-    final_confirmed = dbscan_tracker.confirmed_tracks_snapshot()
-    track_histories = {
-        t.track_id: (t.history_t, t.history_range_m)
-        for t in final_confirmed
-    }
+    # Pre-build (t_start, t_end) intervals from EKF confirmed tracks for the
+    # DETECTED indicator.  coast_s ≈ 0.4 s mirrors the tracker's max_misses budget
+    # (max(15, 0.40*fps)/fps ≈ 0.40 s at any frame rate).
+    _coast_s = 0.4
+    _ekf_intervals: list[tuple[float, float]] = [
+        (float(min(trk.history_t)), float(max(trk.history_t)) + _coast_s)
+        for trk in (tracks or [])
+        if trk.history_t
+    ]
 
     # --- calibrate colour limits ----------------------------------------------
     sample_mags: list[np.ndarray] = []
@@ -1065,11 +1108,35 @@ def save_doppler_animation(
     ax_hist.set_xlim(t_start, t_end)
     ax_hist.set_ylim(float(range_roi[0]), float(range_roi[-1]))
     ax_hist.set_title("Confirmed tracks — range", color="white", fontsize=10, pad=4)
-    for tid, (ht, hr) in track_histories.items():
-        ax_hist.plot(ht, hr, color=_tcolor(tid), alpha=0.25, linewidth=0.8)
+    for i, trk in enumerate(tracks or []):
+        if len(trk.history_t) >= 2:
+            ax_hist.plot(
+                trk.history_t, trk.history_m,
+                color=_tcolor(i), linewidth=1.2, alpha=0.85,
+            )
     vline = ax_hist.axvline(t_start, color="white", linewidth=0.8, linestyle="--", alpha=0.6)
 
     fig.tight_layout(pad=1.2)
+
+    # HUD overlays on the RD heatmap panel — person count, presence, SNR
+    _hud_bg = dict(boxstyle="round,pad=0.3", facecolor="black", alpha=0.65, edgecolor="none")
+    _hud_sm = dict(boxstyle="round,pad=0.25", facecolor="black", alpha=0.55, edgecolor="none")
+    hud_count = ax_rd.text(
+        0.02, 0.97, "PEOPLE: 0",
+        transform=ax_rd.transAxes, color="white", fontsize=12, fontweight="bold",
+        va="top", ha="left", zorder=10, bbox=_hud_bg,
+    )
+    hud_presence = ax_rd.text(
+        0.02, 0.87, "●  PRESENCE: ---",
+        transform=ax_rd.transAxes, color="#aaaaaa", fontsize=9,
+        va="top", ha="left", zorder=10, bbox=_hud_sm,
+    )
+    hud_snr = ax_rd.text(
+        0.02, 0.79, "SNR: --- dB",
+        transform=ax_rd.transAxes, color="white", fontsize=9,
+        va="top", ha="left", zorder=10, bbox=_hud_sm,
+    )
+
     fig.canvas.draw()
 
     print(f"[doppler anim] {n_source} src frames → {n_renders} rendered "
@@ -1091,6 +1158,8 @@ def save_doppler_animation(
                 vline.set_xdata([t_now, t_now])
 
                 # Find closest DBSCAN tracking snapshot
+                conf_now: dict = {}
+                dets_now: list = []
                 if n_rd > 0:
                     rd_idx = int(np.argmin(np.abs(rd_ts_arr - t_now)))
                     snap = rd_snaps[rd_idx]
@@ -1135,6 +1204,21 @@ def save_doppler_animation(
                 else:
                     scat_dets.set_offsets(np.empty((0, 2)))
                     scat_tent.set_offsets(np.empty((0, 2)))
+
+                # HUD update
+                snr_inst_db = float(np.max(mag_db)) - float(np.percentile(mag_db, 20))
+                # Use the EKF occupancy count (same source as occupancy.png) when available;
+                # fall back to internal DBSCAN count only if it was not passed in.
+                n_people = (
+                    int(occupancy_per_frame[fi])
+                    if occupancy_per_frame is not None and fi < len(occupancy_per_frame)
+                    else len(conf_now)
+                )
+                hud_count.set_text(f"PEOPLE: {n_people}")
+                presence = any(t0 <= t_now <= t1 for t0, t1 in _ekf_intervals)
+                hud_presence.set_text("●  DETECTED" if presence else "●  NONE")
+                hud_presence.set_color("#44ff88" if presence else "#ff4444")
+                hud_snr.set_text(f"SNR: {snr_inst_db:.1f} dB")
 
                 fig.canvas.draw()
                 rgb = np.asarray(fig.canvas.buffer_rgba(), dtype=np.uint8)[..., :3].copy()

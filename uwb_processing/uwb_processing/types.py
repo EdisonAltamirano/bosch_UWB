@@ -113,6 +113,7 @@ class DetectionConfig:
     doppler_limit_hz: float = 6.0
     microdoppler_limit_hz: float = 10.0
     peak_centroid_half_width_m: float = 0.30
+    occ_min_duration_s: float = 3.0
 
 
 @dataclass(slots=True)

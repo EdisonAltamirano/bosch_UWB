@@ -57,7 +57,8 @@ else:
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SESSION_NAME = "shubo_edison_two_static_walking_medium_2ms"
+# DEFAULT_SESSION_NAME = "shubo_edison_two_static_walking_medium_2ms"
+DEFAULT_SESSION_NAME = "single_person_walking_preset_2ms"
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +172,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Cluster unassigned CFAR detections with DBSCAN before track initiation. "
              "Suppresses single-point noise tracks; improves person-count accuracy.",
     )
+    parser.add_argument(
+        "--occ-min-duration", type=float, default=3.0,
+        help="Minimum track duration (s) for a track to count as a person in occupancy. "
+             "Increase to suppress short spurious tracks (default 3.0 s).",
+    )
     return parser
 
 
@@ -187,6 +193,7 @@ def config_from_args(args: argparse.Namespace) -> DetectionConfig:
         max_rd_fft_frames=int(getattr(args, "max_rd_fft_frames", 256)),
         microdoppler_window_s=float(getattr(args, "microdoppler_window_s", 1.5)),
         stft_overlap=float(getattr(args, "stft_overlap", 0.75)),
+        occ_min_duration_s=float(getattr(args, "occ_min_duration", 3.0)),
     )
 
 
@@ -252,13 +259,23 @@ def _append_unique_trajectory(
         dst_obs.append(bool(observed))
 
 
-def _consolidate_tracks(tracks: list[Track], gate_m: float = 0.60, merge_gap_s: float = 1.0) -> list[Track]:
-    """Merge short adjacent track fragments that follow the same physical target."""
+def _consolidate_tracks(
+    tracks: list[Track],
+    gate_m: float = 0.60,
+    merge_gap_s: float = 1.0,
+) -> tuple[list[Track], dict[int, int]]:
+    """Merge short adjacent track fragments that follow the same physical target.
+
+    Returns (merged_tracks, id_remap) where id_remap maps every raw track_id to
+    the track_id of the consolidated survivor.  Use the remap when computing
+    per-frame occupancy so that fragments of the same person deduplicate.
+    """
     if len(tracks) <= 1:
-        return list(tracks)
+        return list(tracks), {t.track_id: t.track_id for t in tracks}
 
     sorted_tracks = sorted(tracks, key=lambda t: t.history_t[0] if t.history_t else np.inf)
     merged: list[Track] = []
+    id_remap: dict[int, int] = {}
 
     for track in sorted_tracks:
         if not track.history_t:
@@ -292,8 +309,11 @@ def _consolidate_tracks(tracks: list[Track], gate_m: float = 0.60, merge_gap_s: 
 
         if best is None:
             merged.append(track)
+            id_remap[track.track_id] = track.track_id
             continue
 
+        # track is absorbed into best — record the remap before mutating best
+        id_remap[track.track_id] = best.track_id
         _append_unique_samples(best.history_t, best.history_m, track.history_t, track.history_m)
         _append_unique_trajectory(
             best.trajectory_t,
@@ -308,7 +328,7 @@ def _consolidate_tracks(tracks: list[Track], gate_m: float = 0.60, merge_gap_s: 
         best.hit_count += track.hit_count
         best.miss_count = min(best.miss_count, track.miss_count)
 
-    return merged
+    return merged, id_remap
 
 
 def _save_occupancy_plot(
@@ -384,6 +404,11 @@ def process_session(
     session = load_session(input_path, topic=topic)
     preprocessed = preprocess_session(session, config)
     timings_s["load_preprocess"] = time.perf_counter() - stage_start
+
+    # Per-frame SNR from ROI/background power ratio (used in video HUDs).
+    snr_db_per_frame = 10.0 * np.log10(
+        np.asarray(preprocessed.roi_to_background_power_ratio, dtype=np.float64) + 1e-6
+    )
 
     # 2. Session-level plots (guide §2.3, §6)
     stage_start = time.perf_counter()
@@ -494,7 +519,7 @@ def process_session(
         tracks_per_frame.append(tracker.update(fi, t_s, dets))
 
     raw_tracks = tracker.tracks_snapshot()
-    all_tracks = _consolidate_tracks(raw_tracks, gate_m=0.70, merge_gap_s=1.5)
+    all_tracks, _id_remap = _consolidate_tracks(raw_tracks, gate_m=0.70, merge_gap_s=2.5)
     save_multi_peak_tracking_plot(
         preprocessed,
         all_tracks,
@@ -505,50 +530,85 @@ def process_session(
 
     # Person occupancy: count only tracks that were active long enough to be a real person.
     # Short-lived tracks (noise, clutter bursts) are excluded by the duration threshold.
-    occ_min_duration_s = max(tracker_cfg.min_track_duration_s, 2.0)
+    occ_min_duration_s = max(tracker_cfg.min_track_duration_s,
+                             float(getattr(config, "occ_min_duration_s", 3.0)))
+    _occ_range_max_m = config.default_range_gate_m[1]
     persistent_ids: set[int] = {
         t.track_id for t in all_tracks
         if len(t.history_t) >= 2
         and (max(t.history_t) - min(t.history_t)) >= occ_min_duration_s
+        and float(np.mean(t.history_m)) <= _occ_range_max_m
     }
+    persistent_list = [t for t in all_tracks if t.track_id in persistent_ids]
+
+    # Deduplicate overlapping persistent tracks: if a shorter track overlaps a
+    # longer one for >= 2 s AND their median ranges during the overlap differ by
+    # < 0.5 m, it is an EKF duplicate of the same person.  Remove the shorter
+    # track so it does not inflate the simultaneous count.
+    _sorted_p = sorted(
+        persistent_list,
+        key=lambda t: (max(t.history_t) - min(t.history_t)) if len(t.history_t) >= 2 else 0.0,
+        reverse=True,
+    )
+    _dup_ids: set[int] = set()
+    for _i, _ta in enumerate(_sorted_p):
+        if _ta.track_id in _dup_ids:
+            continue
+        _ta_lo, _ta_hi = float(min(_ta.history_t)), float(max(_ta.history_t))
+        for _tb in _sorted_p[_i + 1:]:
+            if _tb.track_id in _dup_ids:
+                continue
+            _tb_lo, _tb_hi = float(min(_tb.history_t)), float(max(_tb.history_t))
+            _overlap = max(0.0, min(_ta_hi, _tb_hi) - max(_ta_lo, _tb_lo))
+            if _overlap < 2.0:
+                continue
+            # Compare median range during the shared overlap window
+            def _median_range_in(trk: Track, lo: float, hi: float) -> float:
+                pts = [r for t, r in zip(trk.history_t, trk.history_m) if lo <= t <= hi]
+                return float(np.median(pts)) if pts else float(np.mean(trk.history_m))
+            _r_a = _median_range_in(_ta, max(_ta_lo, _tb_lo), min(_ta_hi, _tb_hi))
+            _r_b = _median_range_in(_tb, max(_ta_lo, _tb_lo), min(_ta_hi, _tb_hi))
+            if abs(_r_a - _r_b) < 0.5:
+                _dup_ids.add(_tb.track_id)
+
+    if _dup_ids:
+        persistent_ids -= _dup_ids
+        persistent_list = [t for t in persistent_list if t.track_id not in _dup_ids]
+
+    n_persistent = len(persistent_ids)
+
+    # Build per-frame occupancy from tracks_per_frame (same source as peak_tracking.png)
+    # with consolidation remap + dedup so each physical person counts as one.
     occupancy_per_frame: list[int] = [
-        sum(1 for t in frame_tracks if t.track_id in persistent_ids)
+        len({
+            _id_remap.get(t.track_id, t.track_id)
+            for t in frame_tracks
+            if _id_remap.get(t.track_id, t.track_id) in persistent_ids
+        })
         for frame_tracks in tracks_per_frame
     ]
     nonzero_occ = [c for c in occupancy_per_frame if c > 0]
     person_count_peak = max(nonzero_occ) if nonzero_occ else 0
-    n_persistent = len(persistent_ids)
 
-    # Primary estimate: cluster persistent tracks by mean spatial position.
-    # Multiple short-lived fragments of the same person collapse into one cluster;
-    # each distinct cluster = one person.  eps=0.5 m (range-only) or 0.8 m (2-D).
-    persistent_list = [t for t in all_tracks if t.track_id in persistent_ids]
-    try:
-        from sklearn.cluster import DBSCAN as _DBSCAN
-        if persistent_list:
-            if use_2d_ekf and any(t.trajectory_x for t in persistent_list):
-                pos = np.array([
-                    [np.mean(t.trajectory_x) if t.trajectory_x else 0.0,
-                     np.mean(t.trajectory_y) if t.trajectory_y else np.mean(t.history_m)]
-                    for t in persistent_list
-                ])
-                eps_m = 0.8
-            else:
-                pos = np.array([[np.mean(t.history_m)] for t in persistent_list])
-                eps_m = 0.5
-            labels = _DBSCAN(eps=eps_m, min_samples=1).fit_predict(pos)
-            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-            # person_count_peak is a hard upper bound: if only 2 tracks were ever
-            # confirmed simultaneously, there cannot be more than 2 people.
-            person_count_estimate = min(n_clusters, person_count_peak) if person_count_peak > 0 else n_clusters
-        else:
-            person_count_estimate = 0
-    except Exception:
-        # fallback: 90th-percentile of per-frame count
-        person_count_estimate = int(np.percentile(nonzero_occ, 90)) if nonzero_occ else 0
+    # Mode = most frequent simultaneous count.  Immune to brief spikes; a duplicate
+    # must be active for the majority of the session to shift it.  This is the sole
+    # estimate — DBSCAN on mean range is unreliable for walking targets whose mean
+    # range shifts as they move and would fragment one person into several clusters.
+    from collections import Counter as _Counter
+    _occ_hist = _Counter(nonzero_occ)
+    person_count_mode = max(_occ_hist, key=_occ_hist.get) if _occ_hist else 0
+    person_count_estimate = person_count_mode
 
+    for _t in persistent_list:
+        _dur = float(max(_t.history_t) - min(_t.history_t)) if len(_t.history_t) >= 2 else 0.0
+        print(f"  [occ] track {_t.track_id:3d}  dur={_dur:.1f}s  "
+              f"range {float(min(_t.history_m)):.2f}–{float(max(_t.history_m)):.2f} m  "
+              f"mean={float(np.mean(_t.history_m)):.2f} m")
+    _dup_note = f", {len(_dup_ids)} dup(s) removed" if _dup_ids else ""
     print(f"[occupancy] estimated {person_count_estimate} person(s)  "
-          f"(peak {person_count_peak}, {n_persistent} persistent / {len(all_tracks)} total tracks)")
+          f"(peak {person_count_peak}, mode={person_count_mode}, "
+          f"{n_persistent} persistent / {len(all_tracks)} total tracks{_dup_note}, "
+          f"occ_min_dur={occ_min_duration_s:.1f}s)")
     _save_occupancy_plot(
         occupancy_per_frame,
         session.timestamps_s,
@@ -567,6 +627,7 @@ def process_session(
                 preprocessed,
                 output_dir / "doppler.mp4",
                 tracks=all_tracks,
+                occupancy_per_frame=occupancy_per_frame,
             )
         except Exception as exc:
             import traceback
@@ -602,6 +663,9 @@ def process_session(
                     fov_limit_deg=aoa_fov_deg,
                     output_path=output_dir / "fov.mp4",
                     range_max_m=_FOV_RANGE_MAX_M,
+                    snr_db_per_frame=snr_db_per_frame,
+                    occupancy_per_frame=occupancy_per_frame,
+                    presence_per_frame=preprocessed.presence_mask,
                 )
             if animate_aoa:
                 range_angle_grids = np.zeros(

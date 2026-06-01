@@ -281,7 +281,6 @@ def run_cfar_session(
     range_axis = preprocessed.range_axis_m            # (N_taps,)
     wall_clip = preprocessed.config.wall_clip_m
 
-    # Mask to restrict CFAR to taps at or beyond the wall clip
     valid_mask = range_axis >= wall_clip
 
     results: list[list[CfarDetection]] = []
@@ -342,7 +341,9 @@ def annotate_detections_with_doppler(
                 continue
             conj_prod = np.conj(highpass_complex[fi - 1, t]) * highpass_complex[fi, t]
             phase_diff = float(np.angle(conj_prod))
-            det.range_rate_m_s = float(phase_diff * lambda_m / (4.0 * np.pi * dt_s))
+            # Negate: CIR phase evolves as exp(-j·4π·r/λ), so phase_diff = -4π·v·dt/λ
+            # → v = -phase_diff·λ/(4π·dt).  Positive v = receding, matches EKF convention.
+            det.range_rate_m_s = float(-phase_diff * lambda_m / (4.0 * np.pi * dt_s))
 
 
 def _resolve_rd_window_frames(
@@ -451,7 +452,9 @@ def run_cfar_rd(
                 cluster_min_gap_taps=cfar_cfg.cluster_min_gap_taps,
                 max_peaks=cfar_cfg.max_peaks_per_frame,
             )
-            v = float(doppler_axis_mps[di])
+            # doppler_axis_mps = fftfreq × λ/2 = -v_true (approaching convention).
+            # Negate to match EKF convention: positive = receding (range increasing).
+            v = -float(doppler_axis_mps[di])
             for p in peaks:
                 p.range_rate_m_s = v
             frame_peaks.extend(peaks)
