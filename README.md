@@ -187,10 +187,9 @@ Edit these files depending on the change:
 
 ## Post Processing
 
-If you also want the rosbag for two person walking opposite directions
+If you also want the rosbag for two person walking opposite directions, change the name in run_session.py DEFAULT_SESSION_NAME = "shubo_edison_two_static_walking_medium_2ms"
+python3 -m uwb_processing.run_session --cfar-mode range_doppler --use-2d-ekf --use-group-association --use-dbscan-init --animate
 
-python3 -m uwb_processing.run_session --input uwb_rosbags/shubo_edison_two_static_walking_medium_2ms --cfar-mode range_doppler --use-2d-ekf --use-group-association --use-dbscan-init --animate
+If you also want the rosbag for single person walking, change the name in run_session.py DEFAULT_SESSION_NAME = "single_person_walking_preset_2ms"
 
-If you also want the rosbag for single person walking
-
-python3 -m uwb_processing.run_session --input uwb_rosbags/shubo_edison_two_static_walking_medium_2ms --cfar-mode range_doppler --use-2d-ekf --use-group-association --use-dbscan-init --animate
+python3 -m uwb_processing.run_session --cfar-mode range_doppler --use-2d-ekf --use-group-association --use-dbscan-init --animate
