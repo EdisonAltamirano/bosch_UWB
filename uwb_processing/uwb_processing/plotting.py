@@ -496,6 +496,89 @@ def save_breathing_map(result: BreathingResult, output_path: Path) -> None:
     plt.close(fig)
 
 
+def save_phase_iq_plot(
+    preprocessed: PreprocessedSession,
+    output_path: Path,
+    tap_index: int | None = None,
+) -> None:
+    """Phase-over-time and I/Q trajectory of the dominant-tap complex CIR.
+
+    Breathing (and any sub-wavelength motion) shows up as a slow oscillation of
+    the unwrapped phase and as an arc swept by the I/Q phasor.  By default the
+    session-level power-dominant tap is used; pass ``tap_index`` to inspect
+    another range bin.
+    """
+    cfg = preprocessed.config
+    tap = preprocessed.dominant_tap if tap_index is None else int(tap_index)
+    tap = int(np.clip(tap, 0, preprocessed.highpass_complex.shape[1] - 1))
+
+    signal = preprocessed.highpass_complex[:, tap].astype(np.complex128)
+    t = np.asarray(preprocessed.session.timestamps_s, dtype=np.float64)
+    if t.size != signal.size:                       # be robust to any mismatch
+        t = np.arange(signal.size, dtype=np.float64) / max(preprocessed.frame_rate_hz, 1e-9)
+    range_m = float(preprocessed.range_axis_m[tap])
+
+    i_comp = np.real(signal)
+    q_comp = np.imag(signal)
+    phase = np.unwrap(np.angle(signal))
+    phase -= np.mean(phase)                          # remove arbitrary offset
+
+    # Equivalent radial displacement: dx = phase * lambda / (4*pi).
+    wavelength_m = 3e8 / cfg.carrier_frequency_hz
+    disp_mm = phase * wavelength_m / (4.0 * np.pi) * 1e3
+
+    fig = plt.figure(figsize=(13, 6), facecolor="white")
+    gs = fig.add_gridspec(2, 2, width_ratios=[2.0, 1.0], hspace=0.08, wspace=0.25)
+    ax_phase = fig.add_subplot(gs[0, 0])
+    ax_iq = fig.add_subplot(gs[1, 0], sharex=ax_phase)
+    ax_traj = fig.add_subplot(gs[:, 1])
+
+    # --- (a) unwrapped phase over time, with displacement on the right axis ---
+    ax_phase.plot(t, phase, color=jet_color(0, 3), linewidth=1.0)
+    ax_phase.set_ylabel("Unwrapped phase (rad)")
+    ax_phase.set_title(
+        f"Dominant-tap phase & I/Q  (path {preprocessed.selected_path}, "
+        f"tap {tap}, range {range_m:.2f} m)"
+    )
+    ax_phase.grid(True, alpha=0.3)
+    ax_phase.tick_params(labelbottom=False)
+
+    ax_disp = ax_phase.twinx()
+    disp_span = float(np.max(np.abs(disp_mm))) if disp_mm.size else 1.0
+    phase_span = float(np.max(np.abs(phase))) if phase.size else 1.0
+    ax_disp.set_ylim(-disp_span * 1.05 - 1e-9, disp_span * 1.05 + 1e-9)
+    ax_phase.set_ylim(-phase_span * 1.05 - 1e-9, phase_span * 1.05 + 1e-9)
+    ax_disp.set_ylabel("Radial displacement (mm)", color="#555555")
+    ax_disp.tick_params(axis="y", labelcolor="#555555")
+
+    # --- (b) I and Q components over time ---
+    ax_iq.plot(t, i_comp, color=jet_color(0, 3), linewidth=0.9, label="I (real)")
+    ax_iq.plot(t, q_comp, color=jet_color(2, 3), linewidth=0.9, label="Q (imag)")
+    ax_iq.set_xlabel("Time (s)")
+    ax_iq.set_ylabel("Amplitude")
+    ax_iq.grid(True, alpha=0.3)
+    ax_iq.legend(loc="upper right", fontsize=8, ncol=2)
+
+    # --- (c) I/Q trajectory coloured by time ---
+    sc = ax_traj.scatter(i_comp, q_comp, c=t, cmap="jet", s=6, linewidths=0)
+    ax_traj.plot(i_comp, q_comp, color="0.6", linewidth=0.3, alpha=0.5, zorder=0)
+    ax_traj.scatter([i_comp[0]], [q_comp[0]], facecolors="none",
+                    edgecolors="black", s=70, linewidths=1.4, zorder=5, label="start")
+    ax_traj.axhline(0, color="0.7", linewidth=0.5)
+    ax_traj.axvline(0, color="0.7", linewidth=0.5)
+    ax_traj.set_aspect("equal", adjustable="datalim")
+    ax_traj.set_xlabel("I (real)")
+    ax_traj.set_ylabel("Q (imag)")
+    ax_traj.set_title("I/Q trajectory")
+    ax_traj.legend(loc="upper right", fontsize=8)
+    cbar = fig.colorbar(sc, ax=ax_traj, pad=0.02)
+    cbar.set_label("Time (s)", fontsize=10)
+    cbar.ax.tick_params(labelsize=8)
+
+    fig.savefig(output_path, dpi=160, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 def save_range_doppler_heatmap_animation(
     preprocessed: PreprocessedSession,
     output_path: Path,

@@ -9,8 +9,8 @@ PROTOCOL_MODE = "legacy_tlv"
 # ---------------------------------------------------------------------------
 # Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
-RECORDING_DURATION_MS = 10_000   # milliseconds
-BAG_NAME              = "breathing-ahmad-occlusion-1"  # "" → auto timestamp name
+RECORDING_DURATION_MS = 40_000   # milliseconds
+BAG_NAME              = "breathing-brion-new-1"  # "" → auto timestamp name
 
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.
@@ -35,8 +35,10 @@ RADAR_PRESETS = {
         "ant_tx_id":                 1,
         "single_frame_ntf":          0,
         "rfri_ranging_interval_ms":  100,
-        "rfri_slot_duration_rstu":   12000,
-        "rfri_slots_per_rr":         10,
+        "rfri_slot_duration_rstu":   2400, #12000,
+        "rfri_slots_per_rr":         50, #10,
+        # "rfri_slot_duration_rstu":   12000,
+        # "rfri_slots_per_rr":         10,
         "cir_num_samples":           128,
         "rx_gain_agc_mode":          0,      # 0 = AGC
         "rx_gain_rxa":               0,
@@ -97,7 +99,7 @@ RADAR_PRESETS = {
 # ---------------------------------------------------------------------------
 # Network addressing
 # ---------------------------------------------------------------------------
-STM32_IP   = "192.168.1.10"    # board IP (MAC 00:80:E1 = STMicro)
+STM32_IP   = "host.docker.internal"  # relay via Mac host → 192.168.1.10 (STMicro board)
 STM32_PORT = 37249              # command port
 PC_LISTEN_ACK_PORT    = 20001   # legacy_tlv ACK listener
 PC_LISTEN_FRAME_PORT  = 20000   # CIR frame listener

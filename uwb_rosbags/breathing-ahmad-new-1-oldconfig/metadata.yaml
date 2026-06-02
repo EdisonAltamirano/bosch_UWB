@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 39213000532
+  starting_time:
+    nanoseconds_since_epoch: 1780365683018280305
+  message_count: 1179
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 1179
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - breathing-ahmad-new-1-oldconfig_0.mcap
+  files:
+    - path: breathing-ahmad-new-1-oldconfig_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1780365683018280305
+      duration:
+        nanoseconds: 39213000532
+      message_count: 1179

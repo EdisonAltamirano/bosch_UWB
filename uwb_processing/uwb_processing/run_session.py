@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "breathing-ahmad-1"
+BAG_NAME = "breathing-ahmad-new-1"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).
@@ -60,6 +60,7 @@ from .plotting import (
     save_breathing_map,
     save_multi_peak_tracking_plot,
     save_peak_tracking_plot,
+    save_phase_iq_plot,
     save_presence_monitoring_plot,
     save_presence_score_plot,
     save_range_doppler_heatmap,
@@ -243,6 +244,7 @@ def process_session(
     save_range_time_plot(preprocessed, base_output / "range_time.png")
     save_peak_tracking_plot(preprocessed, base_output / "peak_tracking.png")
     save_range_doppler_plot(preprocessed, base_output / "range_doppler.png")
+    save_phase_iq_plot(preprocessed, base_output / "phase_iq.png")
     save_presence_score_plot(preprocessed, base_output / "presence_score.png")
     save_presence_monitoring_plot(preprocessed, base_output / "presence_monitoring.png")
 

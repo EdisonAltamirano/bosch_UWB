@@ -1,0 +1,26 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 39191918990
+  starting_time:
+    nanoseconds_since_epoch: 1780365803593282763
+  message_count: 1178
+  topics_with_message_count:
+    - topic_metadata:
+        name: /uwb/frame_raw
+        type: sensors_interfaces/msg/UwbFrame
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 1178
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - breathing-brion-new-1-oldconfig_0.mcap
+  files:
+    - path: breathing-brion-new-1-oldconfig_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1780365803593282763
+      duration:
+        nanoseconds: 39191918990
+      message_count: 1178

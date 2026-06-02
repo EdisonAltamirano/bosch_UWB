@@ -1,0 +1,86 @@
+{
+  "session_id": "breathing-ahmad-new-1",
+  "source_path": "/home/ws/src/uwb_rosbags/breathing-ahmad-new-1",
+  "source_kind": "rosbag",
+  "annotation_path": null,
+  "frame_count": 18519,
+  "path_count": 2,
+  "tap_count": 120,
+  "duration_s": 39.275567293167114,
+  "frame_rate_hz": 474.79103463889516,
+  "selected_path": 0,
+  "dominant_tap": 6,
+  "dominant_range_m": 0.9000000357627869,
+  "presence_frames": 11138,
+  "presence_fraction": 0.6014363765716553,
+  "presence_score_peak": 276.8089599609375,
+  "background_power_reference": 27.387185143066407,
+  "detections": [
+    {
+      "label": "unknown",
+      "expected_present": null,
+      "predicted_present": true,
+      "presence_score": 10.577576916347951,
+      "threshold": 3.0,
+      "power_mean": 131.015869140625,
+      "power_p95": 289.6900573730468,
+      "dominant_range_m": 0.9000000357627869,
+      "dominant_frequency_hz": -237.2705078125,
+      "selected_path": 0,
+      "selected_tap": 6,
+      "start_s": 0.0,
+      "end_s": 39.275567293167114,
+      "artifact_dir": "/home/ws/src/uwb_rosbags/breathing-ahmad-new-1/analysis/unknown",
+      "notes": "Full session auto-window."
+    }
+  ],
+  "config": {
+    "range_resolution_m": 0.3,
+    "tap_spacing_m": 0.15,
+    "spillover_tap_0idx": 0,
+    "default_range_gate_m": [
+      0.3,
+      6.0
+    ],
+    "wall_clip_m": 0.3,
+    "offline_rds_enabled": false,
+    "rds_cutoff_hz": 0.2,
+    "motion_threshold": 3.0,
+    "doppler_window_s": 4.0,
+    "microdoppler_window_s": 1.5,
+    "stft_overlap": 0.75,
+    "carrier_frequency_hz": 6500000000.0,
+    "zero_doppler_hz": 0.15,
+    "doppler_limit_hz": 6.0,
+    "microdoppler_limit_hz": 10.0,
+    "breathing_band_hz": [
+      0.1,
+      0.6
+    ],
+    "breathing_display_max_hz": 1.0,
+    "breathing_range_gate_m": [
+      0.3,
+      2.5
+    ]
+  },
+  "cfar_config": {
+    "num_ref_cells": 8,
+    "num_guard_cells": 2,
+    "pfa": 0.001,
+    "variant": "CA",
+    "max_peaks_per_frame": 4
+  },
+  "confirmed_tracks": 0,
+  "breathing": {
+    "best_range_m": 2.1000001430511475,
+    "best_rate_bpm": 10.767980698111991,
+    "best_rate_hz": 0.1794663449685332,
+    "snr_db": 20.736819562196377,
+    "frame_rate_hz": 474.79103463889516,
+    "selected_path": 0,
+    "band_hz": [
+      0.1,
+      0.6
+    ]
+  }
+}
