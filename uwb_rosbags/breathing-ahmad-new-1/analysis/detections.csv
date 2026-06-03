@@ -1,2 +1,2 @@
 label,expected_present,predicted_present,presence_score,threshold,power_mean,power_p95,dominant_range_m,dominant_frequency_hz,selected_path,selected_tap,start_s,end_s,artifact_dir,notes
-unknown,,True,10.577576916347951,3.0,131.015869140625,289.6900573730468,0.9000000357627869,-237.2705078125,0,6,0.0,39.275567293167114,/home/ws/src/uwb_rosbags/breathing-ahmad-new-1/analysis/unknown,Full session auto-window.
+unknown,,True,6.869181598438255,3.0,77.32780456542969,188.12754821777332,0.75,0.2500216066837311,0,13,0.0,39.275567293167114,/home/ws/src/uwb_rosbags/breathing-ahmad-new-1/analysis/unknown,Full session auto-window.

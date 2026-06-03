@@ -9,25 +9,25 @@
   "duration_s": 39.275567293167114,
   "frame_rate_hz": 474.79103463889516,
   "selected_path": 0,
-  "dominant_tap": 6,
-  "dominant_range_m": 0.9000000357627869,
-  "presence_frames": 11138,
-  "presence_fraction": 0.6014363765716553,
-  "presence_score_peak": 276.8089599609375,
+  "dominant_tap": 13,
+  "dominant_range_m": 0.75,
+  "presence_frames": 3689,
+  "presence_fraction": 0.1992008239030838,
+  "presence_score_peak": 196.37078857421875,
   "background_power_reference": 27.387185143066407,
   "detections": [
     {
       "label": "unknown",
       "expected_present": null,
       "predicted_present": true,
-      "presence_score": 10.577576916347951,
+      "presence_score": 6.869181598438255,
       "threshold": 3.0,
-      "power_mean": 131.015869140625,
-      "power_p95": 289.6900573730468,
-      "dominant_range_m": 0.9000000357627869,
-      "dominant_frequency_hz": -237.2705078125,
+      "power_mean": 77.32780456542969,
+      "power_p95": 188.12754821777332,
+      "dominant_range_m": 0.75,
+      "dominant_frequency_hz": 0.2500216066837311,
       "selected_path": 0,
-      "selected_tap": 6,
+      "selected_tap": 13,
       "start_s": 0.0,
       "end_s": 39.275567293167114,
       "artifact_dir": "/home/ws/src/uwb_rosbags/breathing-ahmad-new-1/analysis/unknown",
@@ -37,7 +37,7 @@
   "config": {
     "range_resolution_m": 0.3,
     "tap_spacing_m": 0.15,
-    "spillover_tap_0idx": 0,
+    "spillover_tap_0idx": 8,
     "default_range_gate_m": [
       0.3,
       6.0
@@ -59,8 +59,8 @@
     ],
     "breathing_display_max_hz": 1.0,
     "breathing_range_gate_m": [
-      0.3,
-      2.5
+      0,
+      3.0
     ]
   },
   "cfar_config": {
@@ -72,7 +72,7 @@
   },
   "confirmed_tracks": 0,
   "breathing": {
-    "best_range_m": 2.1000001430511475,
+    "best_range_m": 0.9000000357627869,
     "best_rate_bpm": 10.767980698111991,
     "best_rate_hz": 0.1794663449685332,
     "snr_db": 20.736819499103394,

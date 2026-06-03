@@ -79,7 +79,7 @@ class DetectionConfig:
     # chip's hardware delay is stripped by the UCI layer before delivery, so the
     # window starts at range ≈ 0 m and this should remain 0.  Only change it if
     # a calibration measurement confirms a residual system delay.
-    spillover_tap_0idx: int = 0
+    spillover_tap_0idx: int = 8
     default_range_gate_m: tuple[float, float] = (0.3, 6.0)
     wall_clip_m: float = 0.3
     offline_rds_enabled: bool = False
@@ -94,12 +94,12 @@ class DetectionConfig:
     microdoppler_limit_hz: float = 10.0
     # --- breathing (vital-sign) analysis ---
     # Physiological breathing band: ~6-36 breaths/min = 0.1-0.6 Hz.
-    breathing_band_hz: tuple[float, float] = (0.1, 0.6)
+    breathing_band_hz: tuple[float, float] = (0.1,0.6)
     # Upper limit of the breathing-rate display axis (heart rate would extend
     # this, but breathing alone only needs ~1 Hz).
     breathing_display_max_hz: float = 1.0
     # Range gate to search for a breathing subject (close range, indoors).
-    breathing_range_gate_m: tuple[float, float] = (1.0, 3.0)
+    breathing_range_gate_m: tuple[float, float] = (0, 3.0)
 
 
 @dataclass(slots=True)

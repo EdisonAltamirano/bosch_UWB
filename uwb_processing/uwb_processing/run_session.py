@@ -48,7 +48,7 @@ QUICKRUN_AOA_ANGLE_BINS = 121
 
 import numpy as np
 
-from .analysis import build_track_slow_time_signal, compute_breathing_map, compute_spectrogram
+from .analysis import build_track_slow_time_signal, compute_breathing_map, compute_breathing_map_phase, compute_spectrogram
 from .animate_aoa import save_aoa_animation
 from .annotations import load_annotation_file
 from .aoa import build_range_angle_map, estimate_track_aoa_session, pair_rx_channels
@@ -58,6 +58,7 @@ from .loaders import load_session
 from .plotting import (
     save_all_cfar_peaks_tap_plot,
     save_breathing_map,
+    save_breathing_map_phase,
     save_multi_peak_tracking_plot,
     save_peak_tracking_plot,
     save_phase_iq_plot,
@@ -244,7 +245,6 @@ def process_session(
     save_range_time_plot(preprocessed, base_output / "range_time.png")
     save_peak_tracking_plot(preprocessed, base_output / "peak_tracking.png")
     save_range_doppler_plot(preprocessed, base_output / "range_doppler.png")
-    save_phase_iq_plot(preprocessed, base_output / "phase_iq.png")
     save_presence_score_plot(preprocessed, base_output / "presence_score.png")
     save_presence_monitoring_plot(preprocessed, base_output / "presence_monitoring.png")
 
@@ -261,6 +261,40 @@ def process_session(
             f"@ {breathing_result.best_range_m:.2f} m "
             f"(SNR {breathing_result.snr_db:.1f} dB)"
         )
+
+        # Phase-domain variant: FFT of unwrapped phase to suppress harmonics.
+        breathing_phase_result = compute_breathing_map_phase(preprocessed)
+        save_breathing_map_phase(breathing_phase_result, base_output / "breathing_map_phase.png")
+        print(
+            f"[breathing phase]  #1 (best): {breathing_phase_result.best_rate_bpm:.1f} brpm "
+            f"@ {breathing_phase_result.best_range_m:.2f} m "
+            f"(SNR {breathing_phase_result.snr_db:.1f} dB)"
+        )
+        ph_band_mask = (
+            (breathing_phase_result.rate_bpm >= breathing_phase_result.band_hz[0] * 60.0)
+            & (breathing_phase_result.rate_bpm <= breathing_phase_result.band_hz[1] * 60.0)
+        )
+        ph_mag_lin = 10.0 ** (breathing_phase_result.power_db / 20.0)
+        ph_band_mag = ph_mag_lin[ph_band_mask, :]
+        ph_band_rates = breathing_phase_result.rate_bpm[ph_band_mask]
+        ph_flat_indices = np.argsort(ph_band_mag.ravel())[::-1]
+        print("[breathing phase]  next 5 peaks in physiological band:")
+        ph_printed = 0
+        for flat_idx in ph_flat_indices:
+            if ph_printed >= 6:
+                break
+            fi, ri = np.unravel_index(flat_idx, ph_band_mag.shape)
+            rate_bpm_val = float(ph_band_rates[fi])
+            range_m_val  = float(breathing_phase_result.range_axis_m[ri])
+            peak_val = float(ph_band_mag[fi, ri])
+            noise_ref = float(np.median(ph_mag_lin[~ph_band_mask, ri])) if np.any(~ph_band_mask) else 1e-9
+            snr = 20.0 * np.log10((peak_val + 1e-9) / (noise_ref + 1e-9))
+            if ph_printed == 0:
+                ph_printed += 1
+                continue
+            print(f"  #{ph_printed + 1}: {rate_bpm_val:.1f} brpm @ {range_m_val:.2f} m  SNR {snr:.1f} dB")
+            ph_printed += 1
+
         # ---- top-5 runner-up peaks ----------------------------------------
         band_mask = (
             (breathing_result.rate_bpm >= breathing_result.band_hz[0] * 60.0)
@@ -288,6 +322,21 @@ def process_session(
             print(f"  #{printed + 1}: {rate_bpm:.1f} brpm @ {range_m:.2f} m  SNR {snr:.1f} dB")
             printed += 1
         # -------------------------------------------------------------------
+
+    # Phase IQ plot — use the breathing-dominant tap when available so the
+    # plot reflects the same range bin as the breathing map.  Fall back to
+    # the power-dominant tap when breathing analysis is disabled.
+    if breathing_result is not None:
+        # Find the array index whose range value is closest to best_range_m.
+        # Direct inverse arithmetic (range / tap_spacing) is wrong when
+        # spillover_tap_0idx != 0 because it omits the tap-axis offset.
+        breathing_tap = int(np.argmin(
+            np.abs(preprocessed.range_axis_m - breathing_result.best_range_m)
+        ))
+    else:
+        breathing_tap = None
+    save_phase_iq_plot(preprocessed, base_output / "phase_iq.png", tap_index=breathing_tap)
+
     # if rdm_animate:
     #     print("[rdm] generating Range-Doppler animation ...")
     #     save_range_doppler_heatmap_animation(

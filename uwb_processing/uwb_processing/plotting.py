@@ -496,6 +496,90 @@ def save_breathing_map(result: BreathingResult, output_path: Path) -> None:
     plt.close(fig)
 
 
+def save_breathing_map_phase(result: BreathingResult, output_path: Path) -> None:
+    """Range x breathing-rate heatmap built from the unwrapped phase signal.
+
+    Identical layout to save_breathing_map but labelled to make clear that the
+    spectrum is of the instantaneous phase φ(t) rather than the raw complex IQ.
+    Working in the phase domain avoids harmonic contamination at 2·f_b, 3·f_b
+    that arises from the Jacobi-Anger expansion of e^{jφ}.
+    """
+    import matplotlib.ticker as ticker
+
+    rate_bpm = result.rate_bpm
+    range_axis = result.range_axis_m
+    map_db = result.power_db                        # (F, R)
+
+    if map_db.size == 0 or range_axis.size == 0 or rate_bpm.size == 0:
+        fig, ax = plt.subplots(figsize=(9, 5.5))
+        ax.text(0.5, 0.5, "Insufficient data for breathing map (phase)",
+                ha="center", va="center")
+        fig.savefig(output_path, dpi=160)
+        plt.close(fig)
+        return
+
+    vmin, vmax = db_limits(map_db)
+
+    fig, ax = plt.subplots(figsize=(9, 5.5), facecolor="white")
+    img = ax.pcolormesh(
+        range_axis,
+        rate_bpm,
+        map_db,
+        cmap="jet",
+        vmin=vmin,
+        vmax=vmax,
+        shading="auto",
+        rasterized=True,
+    )
+    cbar = fig.colorbar(img, ax=ax, pad=0.02)
+    cbar.set_label("Magnitude (dB)", fontsize=11)
+    cbar.ax.tick_params(labelsize=9)
+
+    band_lo_bpm = result.band_hz[0] * 60.0
+    band_hi_bpm = result.band_hz[1] * 60.0
+    ax.axhspan(band_lo_bpm, band_hi_bpm, color="white", alpha=0.08, zorder=1)
+    ax.axhline(band_lo_bpm, color="white", linewidth=0.5, linestyle=":", alpha=0.5)
+    ax.axhline(band_hi_bpm, color="white", linewidth=0.5, linestyle=":", alpha=0.5)
+
+    if result.best_rate_bpm > 0:
+        ax.plot(
+            result.best_range_m, result.best_rate_bpm,
+            marker="o", markersize=9, markerfacecolor="none",
+            markeredgecolor="white", markeredgewidth=1.6, zorder=5,
+        )
+        ax.annotate(
+            f"{result.best_rate_bpm:.1f} brpm\n@ {result.best_range_m:.2f} m\nSNR {result.snr_db:.1f} dB",
+            xy=(result.best_range_m, result.best_rate_bpm),
+            xytext=(0.98, 0.96), textcoords="axes fraction",
+            ha="right", va="top", color="white", fontsize=9, fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="black", alpha=0.45,
+                      edgecolor="white", linewidth=0.5),
+        )
+
+    ax.set_xlabel("Range (m)", fontsize=12)
+    ax.set_ylabel("Breathing rate (breaths/min)", fontsize=12)
+    ax.set_ylim(0, rate_bpm[-1])
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(6.0))
+    ax.tick_params(axis="both", labelsize=9)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("black")
+
+    ax.set_title(
+        f"Breathing map — phase domain  (path {result.selected_path}, "
+        f"fs = {result.frame_rate_hz:.1f} Hz)",
+        fontsize=12,
+    )
+    fig.text(
+        0.5, 0.01,
+        "Slow-time spectrum of unwrapped phase φ(t) per range bin; "
+        "avoids harmonic contamination at 2·f_b, 3·f_b.",
+        ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic",
+    )
+    fig.tight_layout(rect=[0, 0.04, 1, 1])
+    fig.savefig(output_path, dpi=180, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 def save_phase_iq_plot(
     preprocessed: PreprocessedSession,
     output_path: Path,
@@ -523,22 +607,23 @@ def save_phase_iq_plot(
     fs = float(preprocessed.frame_rate_hz)
 
     # Bandpass-filter I and Q separately in the breathing band before computing
-    # the phase — prevents out-of-band noise from causing wrapping artefacts.
+    # the phase — removes high-frequency noise and slow thermal drift so only
+    # realistic breathing-rate content (~0.1–0.6 Hz) remains in the plot.
     from scipy.signal import butter, filtfilt
-    low_hz, high_hz = cfg.breathing_band_hz
-    nyq = fs / 2.0
-    low_n = max(low_hz / nyq, 1e-4)
-    high_n = min(high_hz / nyq, 0.9999)
-    if low_n < high_n and signal.size >= 30:
-        order = min(4, signal.size // 15)
-        order = max(order, 1)
-        b, a = butter(order, [low_n, high_n], btype="band")
-        sig_filt = (
-            filtfilt(b, a, np.real(signal)) + 1j * filtfilt(b, a, np.imag(signal))
-        ).astype(np.complex128)
-    else:
-        sig_filt = signal
-
+    # low_hz, high_hz = cfg.breathing_band_hz
+    # nyq = fs / 2.0
+    # low_n = max(low_hz / nyq, 1e-4)
+    # high_n = min(high_hz / nyq, 0.9999)
+    # if low_n < high_n and signal.size >= 30:
+    #     order = min(4, signal.size // 15)
+    #     order = max(order, 1)
+    #     b, a = butter(order, [low_n, high_n], btype="band")
+    #     sig_filt = (
+    #         filtfilt(b, a, np.real(signal)) + 1j * filtfilt(b, a, np.imag(signal))
+    #     ).astype(np.complex128)
+    # else:
+    #     sig_filt = signal
+    sig_filt = signal
     i_comp     = np.real(sig_filt)
     q_comp     = np.imag(sig_filt)
     phase      = np.angle(sig_filt)          # wrapped phase in [-π, π]
@@ -602,7 +687,7 @@ def save_phase_iq_plot(
 
     fig.suptitle(
         f"path {preprocessed.selected_path}, tap {tap}, {range_m:.2f} m  "
-        f"[bp {low_hz:.2f}–{high_hz:.2f} Hz]",
+        f" ",
         fontsize=9,
         y=1.01,
     )
