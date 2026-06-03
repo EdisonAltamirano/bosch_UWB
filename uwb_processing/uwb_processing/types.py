@@ -99,7 +99,7 @@ class DetectionConfig:
     # this, but breathing alone only needs ~1 Hz).
     breathing_display_max_hz: float = 1.0
     # Range gate to search for a breathing subject (close range, indoors).
-    breathing_range_gate_m: tuple[float, float] = (0.3, 2.5)
+    breathing_range_gate_m: tuple[float, float] = (1.0, 3.0)
 
 
 @dataclass(slots=True)

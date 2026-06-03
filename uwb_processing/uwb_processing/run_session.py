@@ -19,7 +19,7 @@ from typing import Any
 #   python -m uwb_processing.run_session
 # Paths are resolved relative to the current working directory (/home/ws/src).
 # ---------------------------------------------------------------------------
-BAG_NAME = "breathing-ahmad-new-1"
+BAG_NAME = "breathing-blank-new-1"
 
 # Resolve roots from the repo src/ directory so the script works regardless
 # of where it is invoked from (e.g. /home/ws vs /home/ws/src).
@@ -38,7 +38,7 @@ QUICKRUN_TOPIC = "/uwb/frame_raw"
 QUICKRUN_ENABLE_CIR_ANIMATION = False
 QUICKRUN_ENABLE_AOA_ANIMATION = False
 QUICKRUN_ENABLE_3D_SURFACE = False
-QUICKRUN_ENABLE_RDM_ANIMATION = True        # ← set True to generate range_doppler_animation.mp4
+QUICKRUN_ENABLE_RDM_ANIMATION = False       # ← set True to generate range_doppler_animation.mp4
 QUICKRUN_ENABLE_BREATHING = True            # ← set True to generate breathing_map.png + rate estimate
 QUICKRUN_USE_MOVIEPY = False
 QUICKRUN_USE_MULTIPATH_CFAR = False
@@ -257,16 +257,43 @@ def process_session(
         breathing_result = compute_breathing_map(preprocessed)
         save_breathing_map(breathing_result, base_output / "breathing_map.png")
         print(
-            f"[breathing] rate={breathing_result.best_rate_bpm:.1f} brpm "
+            f"[breathing]  #1 (best): {breathing_result.best_rate_bpm:.1f} brpm "
             f"@ {breathing_result.best_range_m:.2f} m "
             f"(SNR {breathing_result.snr_db:.1f} dB)"
         )
-    if rdm_animate:
-        print("[rdm] generating Range-Doppler animation ...")
-        save_range_doppler_heatmap_animation(
-            preprocessed, base_output / "range_doppler_animation.mp4"
+        # ---- top-5 runner-up peaks ----------------------------------------
+        band_mask = (
+            (breathing_result.rate_bpm >= breathing_result.band_hz[0] * 60.0)
+            & (breathing_result.rate_bpm <= breathing_result.band_hz[1] * 60.0)
         )
-        print("[rdm] Range-Doppler animation saved.")
+        mag_lin = 10.0 ** (breathing_result.power_db / 20.0)   # (F, R) linear
+        band_mag = mag_lin[band_mask, :]                        # (Fb, R)
+        band_rates = breathing_result.rate_bpm[band_mask]       # (Fb,)
+        # Flatten and pick the top 6 cells by magnitude (best + 5 runners-up).
+        flat_indices = np.argsort(band_mag.ravel())[::-1]
+        print("[breathing]  next 5 peaks in physiological band:")
+        printed = 0
+        for flat_idx in flat_indices:
+            if printed >= 6:
+                break
+            fi, ri = np.unravel_index(flat_idx, band_mag.shape)
+            rate_bpm = float(band_rates[fi])
+            range_m  = float(breathing_result.range_axis_m[ri])
+            peak_val = float(band_mag[fi, ri])
+            noise_ref = float(np.median(mag_lin[~band_mask, ri])) if np.any(~band_mask) else 1e-9
+            snr = 20.0 * np.log10((peak_val + 1e-9) / (noise_ref + 1e-9))
+            if printed == 0:
+                printed += 1   # skip rank-1 (already printed as best)
+                continue
+            print(f"  #{printed + 1}: {rate_bpm:.1f} brpm @ {range_m:.2f} m  SNR {snr:.1f} dB")
+            printed += 1
+        # -------------------------------------------------------------------
+    # if rdm_animate:
+    #     print("[rdm] generating Range-Doppler animation ...")
+    #     save_range_doppler_heatmap_animation(
+    #         preprocessed, base_output / "range_doppler_animation.mp4"
+    #     )
+    #     print("[rdm] Range-Doppler animation saved.")
 
     # --- CFAR multi-peak detection ---
     cfar_clutter = combine_paths_max(preprocessed) if use_multipath else None

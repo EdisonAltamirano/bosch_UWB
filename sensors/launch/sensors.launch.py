@@ -10,7 +10,7 @@ PROTOCOL_MODE = "legacy_tlv"
 # Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
 RECORDING_DURATION_MS = 40_000   # milliseconds
-BAG_NAME              = "breathing-brion-new-1"  # "" → auto timestamp name
+BAG_NAME              = "breathing-blank-new-1"  # "" → auto timestamp name
 
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.

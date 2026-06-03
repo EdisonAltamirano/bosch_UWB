@@ -154,6 +154,10 @@ def compute_breathing_map(
     range_valid = range_axis[gate]
     gated = signal[:, gate]                           # (N, R)
 
+    # Remove residual per-bin mean before windowing to suppress spectral leakage
+    # from slow thermal/clutter drift into the breathing band near DC.
+    gated = gated - gated.mean(axis=0, keepdims=True)
+
     # Slow-time FFT (Hann-windowed) of the complex CIR per range bin.
     window = np.hanning(n_frames).reshape(-1, 1)
     spectrum = np.fft.fft(gated * window, axis=0)     # (N, R)
