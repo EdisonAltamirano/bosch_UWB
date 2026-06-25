@@ -39,7 +39,7 @@ extern "C" {
 void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-uint32_t nucleo_spi_rdy_line_get_state(void);
+//uint32_t nucleo_spi_rdy_line_get_state(void);
 uint32_t nucleo_spi_int_line_get_state(void);
 void nucleo_nxp_reset_line_assert(bool state);
 /* USER CODE END Prototypes */

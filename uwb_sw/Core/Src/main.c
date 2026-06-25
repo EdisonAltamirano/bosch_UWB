@@ -72,7 +72,7 @@ extern struct netif gnetif;
 /* State machine tracker */
 volatile uci_main_control_states_t main_control_state = UCI_WAITING_FOR_USER_COMMAND;
 volatile uint8_t 	user_radar_config_idx = 0; /* Default: 0 */
-volatile uint32_t	user_radar_session_duration_ms = 1000; /* Default: 1 second */
+volatile uint32_t	user_radar_session_duration_ms = 60000; /* Default: 1 second */		// 60000ms --> 1 minute
 
 /* ── Notification handler (forward declaration) ── */
 static void app_uci_notification_handler(uint8_t gid, uint8_t oid,
@@ -154,6 +154,7 @@ int main(void)
   /* Initialize leds */
   BSP_LED_Init(LED_YELLOW);
   BSP_LED_Init(LED_RED);
+
   /* Initialize COM1 port (115200, 8 bits (7-bit data + 1 stop bit), no parity */
   BspCOMInit.BaudRate   = 115200;
   BspCOMInit.WordLength = COM_WORDLENGTH_8B;

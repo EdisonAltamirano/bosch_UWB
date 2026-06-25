@@ -380,7 +380,7 @@ uci_status_t uci_sr250_full_init(const uci_sr250_init_config_t *config)
 
     printf("Device out of core init and ready.\n\r");
 
-    HAL_Delay(100);
+    HAL_Delay(1000);
     /* ── Step 5: Set RX antenna definitions ── */
     if (config->rx_antennas != NULL && config->num_rx_antennas > 0) {
         st = uci_sr250_set_rx_antenna_defs(config->rx_antennas, config->num_rx_antennas);
@@ -389,7 +389,7 @@ uci_status_t uci_sr250_full_init(const uci_sr250_init_config_t *config)
 
     printf("Rx antenna configuration successfully written.\n\r");
 
-    HAL_Delay(100);
+    HAL_Delay(1000);
     /* ── Step 6: Set TX antenna definitions ── */
     if (config->tx_antennas != NULL && config->num_tx_antennas > 0) {
         st = uci_sr250_set_tx_antenna_defs(config->tx_antennas, config->num_tx_antennas);
@@ -398,7 +398,7 @@ uci_status_t uci_sr250_full_init(const uci_sr250_init_config_t *config)
 
     printf("Tx antenna configuration successfully written.\n\r");
 
-    HAL_Delay(100);
+    HAL_Delay(1000);
 
     /* ── Step 7: Set RX antenna pairs ── */
     if (config->rx_pairs != NULL && config->num_rx_pairs > 0) {
@@ -415,7 +415,7 @@ uci_status_t uci_sr250_full_init(const uci_sr250_init_config_t *config)
             return st;
         }
     }
-    HAL_Delay(100);
+    HAL_Delay(1000);
     /* ── Step 9: Get device info (verify FW version) ── */
     uci_device_info_t dev_info;
     st = uci_cmd_get_device_info(&dev_info);

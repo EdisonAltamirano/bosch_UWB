@@ -60,18 +60,18 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define NXP_RDY_N_Pin GPIO_PIN_13
-#define NXP_RDY_N_GPIO_Port GPIOE
+#define NXP_INT_N_Pin GPIO_PIN_3
+#define NXP_INT_N_GPIO_Port GPIOC
+#define NXP_RST_N_Pin GPIO_PIN_14
+#define NXP_RST_N_GPIO_Port GPIOE
 #define SPI6_CS_Pin GPIO_PIN_14
 #define SPI6_CS_GPIO_Port GPIOD
-#define NXP_RST_N_Pin GPIO_PIN_15
-#define NXP_RST_N_GPIO_Port GPIOD
 #define JTMS_Pin GPIO_PIN_13
 #define JTMS_GPIO_Port GPIOA
 #define JTCK_Pin GPIO_PIN_14
 #define JTCK_GPIO_Port GPIOA
-#define NXP_INT_N_Pin GPIO_PIN_14
-#define NXP_INT_N_GPIO_Port GPIOG
+#define NXP_WAKEUP_Pin GPIO_PIN_12
+#define NXP_WAKEUP_GPIO_Port GPIOG
 
 /* USER CODE BEGIN Private defines */
 
