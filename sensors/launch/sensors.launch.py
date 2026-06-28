@@ -7,22 +7,30 @@ from launch_ros.actions import Node
 PROTOCOL_MODE = "legacy_tlv"
 
 # ---------------------------------------------------------------------------
-# Session settings — change these two values each recording.
+# Session settings - change these two values each recording.
 # ---------------------------------------------------------------------------
-RECORDING_DURATION_MS = 10_000   # milliseconds
-BAG_NAME              = "breathing-ahmad-occlusion-1"  # "" → auto timestamp name
+RECORDING_DURATION_MS = 30_000   # milliseconds
+BAG_NAME              = "corner_reflector_2m30"  # "" -> auto timestamp name
 
 # ---------------------------------------------------------------------------
-# Active radar preset — pick one key from RADAR_PRESETS below.
+# Active radar preset - pick one key from RADAR_PRESETS below.
 # ---------------------------------------------------------------------------
-ACTIVE_PRESET = "medium"         # "medium" or "far"
+ACTIVE_PRESET = "medium_2ms"         # e.g. "medium", "medium_5ms", "medium_2ms", "medium_1ms",
+                                 #      "far", "far_5ms", "far_2ms", "far_1ms"
 
 # ---------------------------------------------------------------------------
-# Radar presets — mirrors radar_cfg[] in uwb_sw/Core/Src/main.c.
+# Radar presets - mirrors radar_cfg[] in uwb_sw/Core/Src/main.c.
 # Each entry maps directly to SET_CONFIG_FULL fields sent to the STM32.
 # ---------------------------------------------------------------------------
-RADAR_PRESETS = {
-    # ── Preset 0: UCI_RADAR_MODE_MEDIUM_DISTANCE (0x01) ──────────────────
+_TIMING_PROFILES = {
+    "10ms": {"rfri_ranging_interval_ms": 100, "rfri_slot_duration_rstu": 12000, "rfri_slots_per_rr": 10},
+    "5ms":  {"rfri_ranging_interval_ms": 100, "rfri_slot_duration_rstu": 6000,  "rfri_slots_per_rr": 20},
+    "2ms":  {"rfri_ranging_interval_ms": 100, "rfri_slot_duration_rstu": 2400,  "rfri_slots_per_rr": 50},
+    "1ms":  {"rfri_ranging_interval_ms": 100, "rfri_slot_duration_rstu": 1200,  "rfri_slots_per_rr": 100},
+}
+
+_BASE_RADAR_PRESETS = {
+    # Preset 0: UCI_RADAR_MODE_MEDIUM_DISTANCE (0x01)
     "medium": {
         "radar_preset_index":        0,
         "radar_mode":                0x01,   # MEDIUM_DISTANCE, up to ~2 m
@@ -34,9 +42,6 @@ RADAR_PRESETS = {
         "ant_rx_rxa_id":             0,      # 0 = disabled
         "ant_tx_id":                 1,
         "single_frame_ntf":          0,
-        "rfri_ranging_interval_ms":  100,
-        "rfri_slot_duration_rstu":   12000,
-        "rfri_slots_per_rr":         10,
         "cir_num_samples":           128,
         "rx_gain_agc_mode":          0,      # 0 = AGC
         "rx_gain_rxa":               0,
@@ -57,7 +62,7 @@ RADAR_PRESETS = {
         "presence_angle_min_deg":    -90,
         "presence_angle_max_deg":    90,
     },
-    # ── Preset 1: UCI_RADAR_MODE_FAR_DISTANCE (0x03) ─────────────────────
+    # Preset 1: UCI_RADAR_MODE_FAR_DISTANCE (0x03)
     "far": {
         "radar_preset_index":        1,
         "radar_mode":                0x03,   # FAR_DISTANCE
@@ -69,9 +74,6 @@ RADAR_PRESETS = {
         "ant_rx_rxa_id":             0,
         "ant_tx_id":                 1,
         "single_frame_ntf":          0,
-        "rfri_ranging_interval_ms":  100,
-        "rfri_slot_duration_rstu":   12000,
-        "rfri_slots_per_rr":         10,
         "cir_num_samples":           128,
         "rx_gain_agc_mode":          0,
         "rx_gain_rxa":               0,
@@ -94,16 +96,25 @@ RADAR_PRESETS = {
     },
 }
 
+RADAR_PRESETS = {}
+for preset_name, base_cfg in _BASE_RADAR_PRESETS.items():
+    RADAR_PRESETS[preset_name] = {**base_cfg, **_TIMING_PROFILES["10ms"]}
+    for timing_name in ("5ms", "2ms", "1ms"):
+        RADAR_PRESETS[f"{preset_name}_{timing_name}"] = {
+            **base_cfg,
+            **_TIMING_PROFILES[timing_name],
+        }
+
 # ---------------------------------------------------------------------------
 # Network addressing
 # ---------------------------------------------------------------------------
-STM32_IP   = "192.168.1.10"    # board IP (MAC 00:80:E1 = STMicro)
+STM32_IP = "192.168.1.10"       # board IP (MAC 00:80:E1 = STMicro)
 STM32_PORT = 37249              # command port
-PC_LISTEN_ACK_PORT    = 20001   # legacy_tlv ACK listener
-PC_LISTEN_FRAME_PORT  = 20000   # CIR frame listener
+PC_LISTEN_ACK_PORT = 20001      # legacy_tlv ACK listener
+PC_LISTEN_FRAME_PORT = 20000    # CIR frame listener
 
 # ---------------------------------------------------------------------------
-# Full config sent to uwb_node — common transport fields + selected preset.
+# Full config sent to uwb_node - common transport fields + selected preset.
 # ---------------------------------------------------------------------------
 RADAR_CFG = {
     "protocol_mode":       PROTOCOL_MODE,
@@ -132,7 +143,7 @@ INSPECTOR_CFG["protocol_mode"] = PROTOCOL_MODE
 def generate_launch_description():
     return LaunchDescription([
 
-        # ── 0. Timestamp publisher ───────────────────────────────────────────
+        # 0. Timestamp publisher
         # Publishes Unix timestamps for cross-node time alignment.
         Node(
             package="sensors",
@@ -141,7 +152,7 @@ def generate_launch_description():
             output="screen",
         ),
 
-        # ── 1. UDP → ROS2 bridge ─────────────────────────────────────────────
+        # 1. UDP -> ROS2 bridge
         # Listens on port 20000 for RADAR_FRAME UDP packets from the STM32,
         # strips the protocol envelope, and publishes each frame as UwbFrame
         # on /uwb/frame_raw.
@@ -158,7 +169,7 @@ def generate_launch_description():
             }],
         ),
 
-        # ── 2. CIR inspector / test node ─────────────────────────────────────
+        # 2. CIR inspector / test node
         # Subscribes to /uwb/frame_raw, decodes every CIR frame fully, and
         # writes a rolling /tmp/session_summary.txt showing metadata, antenna
         # info, tap statistics, and first tap values per frame.
@@ -170,7 +181,7 @@ def generate_launch_description():
             parameters=[INSPECTOR_CFG],
         ),
 
-        # ── 3. Frame parser / archiver ───────────────────────────────────────
+        # 3. Frame parser / archiver
         # Subscribes to /uwb/frame_raw and saves each CIR frame as a
         # compressed NumPy archive (.npz) in ./uwb_npz/.
         Node(
@@ -185,7 +196,7 @@ def generate_launch_description():
             }],
         ),
 
-        # ── 4. Rosbag recorder ───────────────────────────────────────────────
+        # 4. Rosbag recorder
         # Waits for the first CIR frame, then records /uwb/frame_raw to an
         # MCAP rosbag for exactly RECORDING_DURATION_MS milliseconds.
         Node(
@@ -202,7 +213,7 @@ def generate_launch_description():
             }],
         ),
 
-        # ── 5. Control node (delayed so receivers are ready first) ────────────
+        # 5. Control node (delayed so receivers are ready first)
         # uwb_sw mode: sends CMD_START_SESSION to STM32 port 37249 with the
         # configured preset and duration (= RECORDING_DURATION_MS). The STM32
         # streams RADAR_FRAME packets for that duration, then stops.
@@ -219,11 +230,11 @@ def generate_launch_description():
             ],
         ),
 
-        # ── 5. Synthetic-data test sender (hardware-free pipeline test) ───────
+        # 5. Synthetic-data test sender (hardware-free pipeline test)
         # Sends synthetic CIR frames to 127.0.0.1:20000 at 10 Hz so the
         # full ROS2 pipeline can be verified without the STM32.
         #
-        # DISABLE THIS when the STM32 is connected — it injects synthetic
+        # DISABLE THIS when the STM32 is connected - it injects synthetic
         # packets that would mix with real radar data on port 20000.
         # To disable: comment out the TimerAction block below.
         #
