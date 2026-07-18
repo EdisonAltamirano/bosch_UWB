@@ -56,9 +56,9 @@ else:
     from .types import CfarDetectionConfig, DetectionConfig, Track, TrackingConfig
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = Path("/home/ws/src")
 # DEFAULT_SESSION_NAME = "shubo_edison_two_static_walking_medium_2ms"
-DEFAULT_SESSION_NAME = "single_person_walking_preset_2ms"
+DEFAULT_SESSION_NAME = "uwb_new_walking"
 
 
 # ---------------------------------------------------------------------------

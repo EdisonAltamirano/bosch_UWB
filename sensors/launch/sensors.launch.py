@@ -3,14 +3,14 @@ from launch.actions import TimerAction
 from launch_ros.actions import Node
 
 
-# PROTOCOL_MODE = "uwb_sw"
-PROTOCOL_MODE = "legacy_tlv"
+PROTOCOL_MODE = "uwb_sw"
+# PROTOCOL_MODE = "legacy_tlv"
 
 # ---------------------------------------------------------------------------
 # Session settings — change these two values each recording.
 # ---------------------------------------------------------------------------
-RECORDING_DURATION_MS = 10_000   # milliseconds
-BAG_NAME              = "breathing-ahmad-occlusion-1"  # "" → auto timestamp name
+RECORDING_DURATION_MS = 20_000   # milliseconds
+BAG_NAME              = "uwb_new_walking"  # "" → auto timestamp name
 
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.
@@ -130,8 +130,7 @@ INSPECTOR_CFG["protocol_mode"] = PROTOCOL_MODE
 
 
 def generate_launch_description():
-    return LaunchDescription([
-
+    nodes = [
         # ── 0. Timestamp publisher ───────────────────────────────────────────
         # Publishes Unix timestamps for cross-node time alignment.
         Node(
@@ -140,7 +139,75 @@ def generate_launch_description():
             name="unix_timestamp",
             output="screen",
         ),
+    ]
 
+    if PROTOCOL_MODE == "uwb_sw":
+        # uwb_sw board: the sensors package's own "uwb_sw" branch speaks a
+        # wire format that doesn't match the real firmware (see
+        # NEW_UWB_PLAN.md, "Decisiones abiertas" #2) — use the new_uwb
+        # package's nodes instead, which are the ones actually verified
+        # against real hardware (see NEW_UWB_README.md).
+        nodes += [
+            # ── 1. UDP → ROS2 bridge ─────────────────────────────────────
+            Node(
+                package="new_uwb",
+                executable="new_uwb_udp_frame_publisher",
+                name="new_uwb_udp_frame_publisher",
+                output="screen",
+                parameters=[{
+                    "listen_ip":   "0.0.0.0",
+                    "listen_port": PC_LISTEN_FRAME_PORT,
+                    "topic_name":  "/uwb/frame_raw",
+                    "status_topic_name": "/uwb/new_uwb_control_status",
+                }],
+            ),
+
+            # ── 2. Rosbag recorder ───────────────────────────────────────
+            # Waits for the first CIR frame, then records /uwb/frame_raw to
+            # an MCAP rosbag for exactly RECORDING_DURATION_MS milliseconds.
+            Node(
+                package="sensors",
+                executable="uwb_rosbag_recorder_node",
+                name="uwb_rosbag_recorder_node",
+                output="screen",
+                parameters=[{
+                    "topic_name":            "/uwb/frame_raw",
+                    "output_dir":            "/home/ws/src/uwb_rosbags",
+                    "bag_prefix":            "uwb_session",
+                    "bag_name":              BAG_NAME,
+                    "recording_duration_ms": RECORDING_DURATION_MS,
+                }],
+            ),
+
+            # ── 3. Control node (delayed so the receiver is ready first) ──
+            # uwb_sw has no host-pushed TLV config — the board selects its
+            # own preset by index, taken here from the active preset's
+            # radar_preset_index so ACTIVE_PRESET stays the single knob for
+            # both protocols.
+            TimerAction(
+                period=2.0,
+                actions=[
+                    Node(
+                        package="new_uwb",
+                        executable="new_uwb_node",
+                        name="new_uwb_node",
+                        output="screen",
+                        parameters=[{
+                            "board_ip":     STM32_IP,
+                            "board_port":   STM32_PORT,
+                            "setting_idx":  RADAR_PRESETS[ACTIVE_PRESET]["radar_preset_index"],
+                            "duration_ms":  RECORDING_DURATION_MS,
+                            "auto_start":   True,
+                            "status_topic_name": "/uwb/new_uwb_control_status",
+                        }],
+                    ),
+                ],
+            ),
+        ]
+
+        return LaunchDescription(nodes)
+
+    nodes += [
         # ── 1. UDP → ROS2 bridge ─────────────────────────────────────────────
         # Listens on port 20000 for RADAR_FRAME UDP packets from the STM32,
         # strips the protocol envelope, and publishes each frame as UwbFrame
@@ -203,9 +270,9 @@ def generate_launch_description():
         ),
 
         # ── 5. Control node (delayed so receivers are ready first) ────────────
-        # uwb_sw mode: sends CMD_START_SESSION to STM32 port 37249 with the
-        # configured preset and duration (= RECORDING_DURATION_MS). The STM32
-        # streams RADAR_FRAME packets for that duration, then stops.
+        # legacy_tlv mode: pushes SET_CONFIG_FULL then START_RADAR to STM32
+        # port 37249. The STM32 streams RADAR_FRAME packets until STOP_RADAR
+        # or session_duration_ms elapses.
         TimerAction(
             period=2.0,
             actions=[
@@ -247,4 +314,6 @@ def generate_launch_description():
         #     ],
         # ),
 
-    ])
+    ]
+
+    return LaunchDescription(nodes)

@@ -1,0 +1,7 @@
+../Core/Src/spi.c:30:6:MX_SPI6_Init	2
+../Core/Src/spi.c:72:6:HAL_SPI_MspInit	3
+../Core/Src/spi.c:122:6:HAL_SPI_MspDeInit	2
+../Core/Src/spi.c:149:10:nucleo_spi_master_transfer_blocking	10
+../Core/Src/spi.c:170:10:nucleo_spi_write	1
+../Core/Src/spi.c:193:10:nucleo_spi_read	1
+../Core/Src/spi.c:211:10:nucleo_spi_read_both	1

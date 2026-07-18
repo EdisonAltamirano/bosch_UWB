@@ -2,17 +2,17 @@ rosbag2_bagfile_information:
   version: 5
   storage_identifier: mcap
   duration:
-    nanoseconds: 9986892835
+    nanoseconds: 9780006515
   starting_time:
-    nanoseconds_since_epoch: 1779231655603877479
-  message_count: 295
+    nanoseconds_since_epoch: 1784355373615502415
+  message_count: 298
   topics_with_message_count:
     - topic_metadata:
         name: /uwb/frame_raw
         type: sensors_interfaces/msg/UwbFrame
         serialization_format: cdr
         offered_qos_profiles: ""
-      message_count: 295
+      message_count: 298
   compression_format: ""
   compression_mode: ""
   relative_file_paths:
@@ -20,7 +20,7 @@ rosbag2_bagfile_information:
   files:
     - path: breathing-ahmad-occlusion-1_0.mcap
       starting_time:
-        nanoseconds_since_epoch: 1779231655603877479
+        nanoseconds_since_epoch: 1784355373615502415
       duration:
-        nanoseconds: 9986892835
-      message_count: 295
+        nanoseconds: 9780006515
+      message_count: 298

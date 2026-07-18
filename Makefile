@@ -5,6 +5,7 @@ else
     COMPOSE_FILES := -f compose.yaml -f compose.linux.yaml
 endif
 
+UWB_CONTAINER_NAME ?= uwb_nxp
 COMPOSE := docker compose $(COMPOSE_FILES)
 
 .PHONY: uwb.up uwb.down uwb.restart uwb.shell uwb.build
@@ -35,10 +36,10 @@ endif
 
 uwb.shell:
 ifeq ($(OS),Windows_NT)
-	@docker exec -it uwb bash
+	@docker exec -it $(UWB_CONTAINER_NAME) bash
 else
 	@xhost +local:docker
-	@docker exec --user "$$(id -u):$$(id -g)" -it uwb bash
+	@docker exec --user "$$(id -u):$$(id -g)" -it $(UWB_CONTAINER_NAME) bash
 endif
 
 uwb.build:

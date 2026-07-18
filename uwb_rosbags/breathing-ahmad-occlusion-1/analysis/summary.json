@@ -1,0 +1,56 @@
+{
+  "session_id": "breathing-ahmad-occlusion-1",
+  "frame_count": 993,
+  "frame_rate_hz": 99.67926232235372,
+  "duration_s": 9.879466533660889,
+  "selected_path": 0,
+  "dominant_tap": 7,
+  "dominant_range_m": 1.0500000715255737,
+  "cfar_variant": "OS",
+  "cfar_mode": "range_only",
+  "tracker_filter": "ekf",
+  "detections": [],
+  "confirmed_tracks": [
+    {
+      "track_id": 0,
+      "history_length": 105,
+      "mean_range_m": 1.587751576225272
+    },
+    {
+      "track_id": 2,
+      "history_length": 10,
+      "mean_range_m": 2.116755052401345
+    }
+  ],
+  "breathing": [
+    {
+      "track_id": 0,
+      "tap_idx": 11,
+      "is_static": false,
+      "freq_hz": 0.1946860592233471,
+      "freq_bpm": 11.681163553400827,
+      "snr_db": 49.54759394894858,
+      "phase_arc_deg": 670.0976859504057
+    }
+  ],
+  "occupancy": {
+    "person_count_estimate": 1,
+    "person_count_peak": 1,
+    "confirmed_track_count": 2,
+    "persistent_track_count": 1,
+    "occ_min_duration_s": 3.0
+  },
+  "timings_s": {
+    "load_preprocess": 1.149,
+    "session_plots": 5.427,
+    "cfar": 2.158,
+    "pre_aoa": 0.0,
+    "tracking": 1.253,
+    "doppler_animation": 0.0,
+    "aoa": 0.0,
+    "breathing": 0.001,
+    "annotations": 0.0,
+    "artifacts": 0.011,
+    "total": 9.999
+  }
+}

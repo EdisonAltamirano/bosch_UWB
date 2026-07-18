@@ -1,0 +1,3 @@
+../Core/Src/gpio.c:43:6:MX_GPIO_Init	64	static
+../Core/Src/gpio.c:182:10:nucleo_spi_int_line_get_state	8	static
+../Core/Src/gpio.c:187:6:nucleo_nxp_reset_line_assert	16	static

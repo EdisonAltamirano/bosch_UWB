@@ -1,5 +1,5 @@
 services:
-  uwb:
+  uwb_nxp:
     build:
       network: host
     network_mode: host

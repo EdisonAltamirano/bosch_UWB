@@ -1,0 +1,127 @@
+{
+  "session_id": "uwb_new_walking",
+  "frame_count": 1983,
+  "frame_rate_hz": 99.5845956598129,
+  "duration_s": 19.79394841194153,
+  "selected_path": 0,
+  "dominant_tap": 11,
+  "dominant_range_m": 1.6500000953674316,
+  "cfar_variant": "OS",
+  "cfar_mode": "range_only",
+  "tracker_filter": "ekf",
+  "detections": [],
+  "confirmed_tracks": [
+    {
+      "track_id": 0,
+      "history_length": 9,
+      "mean_range_m": 1.5606837728160352
+    },
+    {
+      "track_id": 1,
+      "history_length": 75,
+      "mean_range_m": 1.7426436796327953
+    },
+    {
+      "track_id": 3,
+      "history_length": 311,
+      "mean_range_m": 2.4563626518319452
+    },
+    {
+      "track_id": 6,
+      "history_length": 20,
+      "mean_range_m": 3.2549589991600714
+    },
+    {
+      "track_id": 8,
+      "history_length": 131,
+      "mean_range_m": 2.093054136269423
+    },
+    {
+      "track_id": 9,
+      "history_length": 32,
+      "mean_range_m": 2.690750778757619
+    },
+    {
+      "track_id": 13,
+      "history_length": 2,
+      "mean_range_m": 4.650000095367432
+    },
+    {
+      "track_id": 15,
+      "history_length": 15,
+      "mean_range_m": 3.0920973080073426
+    },
+    {
+      "track_id": 17,
+      "history_length": 8,
+      "mean_range_m": 4.4136727051258475
+    }
+  ],
+  "breathing": [
+    {
+      "track_id": 1,
+      "tap_idx": 12,
+      "is_static": false,
+      "freq_hz": 0.2917517450971081,
+      "freq_bpm": 17.505104705826486,
+      "snr_db": 45.498845619705335,
+      "phase_arc_deg": 2370.087169611784
+    },
+    {
+      "track_id": 3,
+      "tap_idx": 16,
+      "is_static": false,
+      "freq_hz": 0.14952641990962898,
+      "freq_bpm": 8.971585194577738,
+      "snr_db": 61.247432188628935,
+      "phase_arc_deg": 7529.499823653507
+    },
+    {
+      "track_id": 6,
+      "tap_idx": 22,
+      "is_static": false,
+      "freq_hz": 0.19450116339807208,
+      "freq_bpm": 11.670069803884324,
+      "snr_db": 58.18050347557785,
+      "phase_arc_deg": 4150.335158456902
+    },
+    {
+      "track_id": 8,
+      "tap_idx": 14,
+      "is_static": false,
+      "freq_hz": 0.19450116339807208,
+      "freq_bpm": 11.670069803884324,
+      "snr_db": 61.52583579650526,
+      "phase_arc_deg": 4110.2243653573605
+    },
+    {
+      "track_id": 9,
+      "tap_idx": 18,
+      "is_static": false,
+      "freq_hz": 0.19450116339807208,
+      "freq_bpm": 11.670069803884324,
+      "snr_db": 65.68485264816451,
+      "phase_arc_deg": 4521.456481805582
+    }
+  ],
+  "occupancy": {
+    "person_count_estimate": 1,
+    "person_count_peak": 3,
+    "confirmed_track_count": 9,
+    "persistent_track_count": 4,
+    "occ_min_duration_s": 3.0
+  },
+  "timings_s": {
+    "load_preprocess": 1.884,
+    "session_plots": 4.387,
+    "cfar": 3.078,
+    "pre_aoa": 0.0,
+    "tracking": 3.956,
+    "doppler_animation": 0.0,
+    "aoa": 0.0,
+    "breathing": 0.007,
+    "annotations": 0.0,
+    "artifacts": 0.025,
+    "total": 13.336
+  }
+}

@@ -1,10 +1,10 @@
 services:
-  uwb:
+  uwb_nxp:
     build:
       context: .
       dockerfile: Dockerfile
-    image: uwb
-    container_name: uwb
+    image: uwb_nxp
+    container_name: uwb_nxp
     privileged: true
     environment:
       LOCAL_USER_ID: ${LOCAL_USER_ID:-1000}

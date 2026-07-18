@@ -135,6 +135,7 @@ uint8_t nucleo_udp_send(u16_t port, u8_t cmd_id, const u8_t *payload, u16_t payl
 		/* Cases where the payload length will not exceed MAX_DATA_PER_ETH_PACKET */
 		case CMD_UDP_ETH_ACK:
 		case CMD_ERROR_REPORT:
+		case CMD_SYSTEM_STATE:
 			struct pbuf *txBuf;
 			txBuf = pbuf_alloc(PBUF_TRANSPORT, payload_length, PBUF_RAM);
 			if (txBuf) {

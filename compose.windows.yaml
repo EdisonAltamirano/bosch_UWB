@@ -1,5 +1,5 @@
 services:
-  uwb:
+  uwb_nxp:
     # Docker Desktop on Windows does not support network_mode: host.
     # Containers reach the Windows host via the special DNS name below.
     # Explicit UDP port mappings are required so that packets from the STM32

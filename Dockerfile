@@ -14,7 +14,9 @@ RUN apt-get update -qq && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install pyserial tqdm numpy opencv-python scipy "matplotlib>=3.9" rosbags numba
+# numpy pinned <2: the apt-installed python3-scipy (1.8.0) is built against the
+# numpy 1.x C-ABI and breaks with "_ARRAY_API not found" under numpy 2.x.
+RUN pip install pyserial tqdm "numpy<2" opencv-python scipy "matplotlib>=3.9" rosbags numba
     
 # Install ROS dependencies
 RUN apt-get update -qq && \
