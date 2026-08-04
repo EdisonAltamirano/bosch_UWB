@@ -15,7 +15,7 @@ BAG_NAME              = "uwb_new_walking"  # "" → auto timestamp name
 # ---------------------------------------------------------------------------
 # Active radar preset — pick one key from RADAR_PRESETS below.
 # ---------------------------------------------------------------------------
-ACTIVE_PRESET = "medium"         # "medium" or "far"
+ACTIVE_PRESET = "medium_2ms"         # "medium", "far", or "medium_2ms"
 
 # ---------------------------------------------------------------------------
 # Radar presets — mirrors radar_cfg[] in uwb_sw/Core/Src/main.c.
@@ -37,6 +37,41 @@ RADAR_PRESETS = {
         "rfri_ranging_interval_ms":  100,
         "rfri_slot_duration_rstu":   12000,
         "rfri_slots_per_rr":         10,
+        "cir_num_samples":           128,
+        "rx_gain_agc_mode":          0,      # 0 = AGC
+        "rx_gain_rxa":               0,
+        "rx_gain_rxb":               0,
+        "rx_gain_rxc":               0,
+        "cir_start_offset_rxc":      0,
+        "cir_start_offset_rxb":      0,
+        "cir_start_offset_rxa":      0,
+        "performance":               0x03,
+        "drift_compensation":        0x0CCD,
+        "presence_mode":             0x00,
+        "presence_periodic_report":  0x04,
+        "presence_sensitivity_q4_4": 60,
+        "presence_gpio_notify":      0x00,
+        "presence_distance_min_cm":  30,
+        "presence_distance_max_cm":  200,
+        "presence_hold_delay_ms":    1600,
+        "presence_angle_min_deg":    -90,
+        "presence_angle_max_deg":    90,
+    },
+    # ── Preset 2: UCI_RADAR_MODE_MEDIUM_DISTANCE (0x01), 2ms slots ────────
+    "medium_2ms": {
+        "radar_preset_index":        2,
+        "radar_mode":                0x01,   # MEDIUM_DISTANCE, up to ~2 m
+        "channel_number":            9,
+        "preamble_code_index":       26,
+        "antennas_config_rx_mode":   0x02,
+        "ant_rx_rxc_id":             1,
+        "ant_rx_rxb_id":             2,
+        "ant_rx_rxa_id":             0,      # 0 = disabled
+        "ant_tx_id":                 1,
+        "single_frame_ntf":          0,
+        "rfri_ranging_interval_ms":  100,
+        "rfri_slot_duration_rstu":   2400,
+        "rfri_slots_per_rr":         50,
         "cir_num_samples":           128,
         "rx_gain_agc_mode":          0,      # 0 = AGC
         "rx_gain_rxa":               0,

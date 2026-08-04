@@ -268,7 +268,45 @@ int main(void)
 		},
 
 		.max_measurements = 0,  /* Unlimited */
-	}
+	},
+  {
+	.mode                = UCI_RADAR_MODE_MEDIUM_DISTANCE,  /* Required for OCPD */
+	.channel_number      = 9,
+	.preamble_code_index = 26,
+	.cir_num_samples     = 128,
+	.single_frame_ntf    = 0,       /* Every CIR sample immediately */
+	.performance         = 0x03,    /* DC freeze + BW increase */
+	.drift_compensation  = 0x0CCD,  /* Q1.15 of 0.1 */
+
+	.use_rfri = true,
+	.use_perform_lprf_cal = false,
+	.rfri = {
+		.ranging_interval_ms = 100,     /* 50ms required if using OCPD */
+		.slot_duration_rstu  = 2400,	  /* 2ms slot duration */
+		.slots_per_rr        = 50,
+	},
+
+	/* Two RX antennas for AoA */
+	.ant_rx_rxc_id = 0x01,
+	.ant_rx_rxb_id = 0x02,
+	.ant_rx_rxa_id = 0x00,
+	.ant_tx_id     = 0x01,
+
+	/* Presence detection with AoA */
+	.presence_det = {
+		.mode             = 0x00,   /* Bit0: enable, Bit1: distance+AoA */
+		.periodic_report  = 0x04,   /* Presence reporting every 400ms */
+		.sensitivity_q4_4 = 60,     /* Q4.4 of 3.75 */
+		.gpio_notify      = 0x00,   /* No GPIO notification */
+		.distance_min_cm  = 30,
+		.distance_max_cm  = 200,
+		.hold_delay_ms    = 1600,
+		.angle_min_deg    = -90,
+		.angle_max_deg    = +90,
+	},
+
+	.max_measurements = 0,  /* Unlimited */
+  }
   };
 
   /* Keeping track of duration to run the radar session */
