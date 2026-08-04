@@ -9,7 +9,7 @@ from launch_ros.actions import Node
 # ---------------------------------------------------------------------------
 RECORDING_DURATION_MS = 10_000   # milliseconds
 BAG_NAME              = ""       # "" -> auto timestamp name
-SETTING_IDX           = 0        # on-device radar preset index (uwb_sw has no
+SETTING_IDX           = 2        # on-device radar preset index (uwb_sw has no
                                   # host-pushed TLV config — the board selects
                                   # its own preset by this index)
 
